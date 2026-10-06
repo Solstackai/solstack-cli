@@ -9,6 +9,8 @@ Implement an approved OpenSpec change by working through its task list.
 - OpenSpec reports `allowedEditRoots` as `.solstack` because that is where its files are. That limit applies to planning files only. Implement the code where it belongs in the repository.
 - The `solstack` MCP server gives you GitHub and Trello tools that act as the developer. Ask before posting comments or changing issues or cards.
 - The team's engineering standards are installed as skills. `solstack standards` lists them, with what each one covers and the file to read.
+- `solstack context` lists documents about the business and the product: what it does, who uses it, its terms and business rules. Use its terms when naming things.
+- Anything you write that is not code (a task, issue or card, a comment, a pull request, a commit message) follows the team's intake rules. `solstack intake` lists them; read the one that covers what you are about to write.
 
 ## Input
 
@@ -25,6 +27,7 @@ The text after the command is the change name. If it is missing, run `solstack s
    - Check which standards cover the files the task touches, and follow them: structure, naming, error handling, logging and tests. If you have not read one of them yet, read it now.
    - Make the smallest change that completes it, following the design, the standards and the conventions of the surrounding code. If the plan and a standard disagree, stop and ask rather than choosing silently.
    - Add or update tests for the behavior the spec deltas describe, and run them.
+   - If you commit, write the message by the commit message rules from `solstack intake`.
    - Mark the task done in `tasks.md` (`- [ ]` becomes `- [x]`) as soon as it is complete, not at the end.
 
 3. **Stay inside the plan.** If a task turns out to be wrong, or the work needs something the plan does not cover, stop and explain it. Suggest updating the change's artifacts before you continue. Do not quietly widen the scope.

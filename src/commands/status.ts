@@ -76,11 +76,11 @@ export async function status(): Promise<boolean> {
       latest !== null &&
       latest.length === installed.size &&
       latest.every((s) => installed.get(s.slug) === s.updatedAt);
-    const count = `${installed.size} installed as skill${installed.size === 1 ? '' : 's'}`;
-    if (latest === null) console.log(`\n${bold('Standards')}    ${count} ${dim('(could not check the server)')}`);
-    else if (current) console.log(`\n${bold('Standards')}    ${ok(`${count}, up to date`)}`);
+    const count = `${installed.size} installed as skill${installed.size === 1 ? '' : 's'} (standards, intake rules, product context)`;
+    if (latest === null) console.log(`\n${bold('Guidance')}     ${count} ${dim('(could not check the server)')}`);
+    else if (current) console.log(`\n${bold('Guidance')}     ${ok(`${count}, up to date`)}`);
     else {
-      console.log(`\n${bold('Standards')}    ${warn(`${count}; the server has changes. Run \`solstack update\` and commit.`)}`);
+      console.log(`\n${bold('Guidance')}     ${warn(`${count}; the server has changes. Run \`solstack update\` and commit.`)}`);
       healthy = false;
     }
   }

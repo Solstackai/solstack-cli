@@ -7,7 +7,13 @@ export interface RepositorySetup {
   server: { url: string; mcpUrl: string };
 }
 
+/** What a guidance document is for. All kinds are installed as agent skills. */
+export type GuidanceKind = 'standard' | 'intake' | 'context';
+
 export interface StandardDoc {
+  kind: GuidanceKind;
+  /** The built-in intake section (tasks, comments, pull_requests, commits) for intake rules that fill one. */
+  target: string | null;
   slug: string;
   name: string;
   description: string;

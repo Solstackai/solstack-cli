@@ -7,6 +7,7 @@ Finish an implemented OpenSpec change: merge its spec deltas into the main specs
 - Specs and changes live in `.solstack/openspec/`. Run OpenSpec through `solstack spec <arguments>`, never `openspec` directly.
 - The `solstack` MCP server gives you GitHub and Trello tools that act as the developer. Ask before posting anything.
 - The team's engineering standards are installed as skills. `solstack standards` lists them, with what each one covers and the file to read.
+- Anything you write that is not code (a task, issue or card, a comment, a pull request, a commit message) follows the team's intake rules. `solstack intake` lists them; read the one that covers what you are about to write.
 
 ## Input
 
@@ -22,7 +23,7 @@ The text after the command is the change name. If it is missing, run `solstack s
 
 4. **Archive.** Run `solstack spec archive "<name>" --yes`. This updates `.solstack/openspec/specs/` and moves the change to `.solstack/openspec/changes/archive/`. If the change touches no specs (pure tooling or documentation), add `--skip-specs`, and tell the developer that you did.
 
-5. **Report back to the tracker, if there is one.** If the proposal links a GitHub issue or a Trello card, offer to post a short summary of what shipped, or to move the card. Do it only if the developer agrees.
+5. **Report back to the tracker, if there is one.** If the proposal links a GitHub issue or a Trello card, offer to post a short summary of what shipped, or to move the card. Do it only if the developer agrees, and write the comment by the comment rules from `solstack intake`. If you open a pull request, follow the pull request rules.
 
 ## Finish
 

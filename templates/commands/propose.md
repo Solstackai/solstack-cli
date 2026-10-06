@@ -8,6 +8,8 @@ Turn a request into a reviewed plan: an OpenSpec change with a proposal, spec de
 - Run OpenSpec through `solstack spec <arguments>`, never `openspec` directly. `solstack spec` runs the version this repository pins, from the right folder. When OpenSpec's output suggests `openspec <something>`, run `solstack spec <something>` instead.
 - The `solstack` MCP server gives you GitHub and Trello tools that act as the developer. If a tool answers that an integration is not connected, show the developer the link it returns and wait. Do not work around it.
 - The team's engineering standards are installed as skills. `solstack standards` lists them, with what each one covers and the file to read.
+- `solstack context` lists documents about the business and the product: what it does, who uses it, its terms and business rules.
+- Anything you write that is not code (a task, issue or card, a comment, a pull request, a commit message) follows the team's intake rules. `solstack intake` lists them; read the one that covers what you are about to write. If the developer asks you to open a task for this change, follow the rules for opening tasks.
 
 ## Input
 
@@ -22,7 +24,7 @@ If there is no input, ask what the developer wants to build or fix, and wait for
 
 ## Steps
 
-1. **Understand the request.** Read the issue or card if one was given. If something ambiguous would change the scope, the visible behavior, compatibility or what counts as done, ask before going further. For small details, make a reasonable assumption and write it down in the proposal.
+1. **Understand the request.** Run `solstack context` and read the documents that cover the area of the request, so you understand it in the product's terms. Read the issue or card if one was given. If something ambiguous would change the scope, the visible behavior, compatibility or what counts as done, ask before going further. For small details, make a reasonable assumption and write it down in the proposal.
 
 2. **Pick a name.** Derive a short kebab-case change name, for example `add-dark-mode`. If the request came from an issue or card, keep a link to it so you can mention it in the proposal. If `solstack spec list --json` already shows a change with that name, ask whether to continue it or start a new one.
 
@@ -35,7 +37,7 @@ If there is no input, ask what the developer wants to build or fix, and wait for
 6. **Write each artifact, in dependency order.** Repeat until everything the apply step needs exists:
    - Run `solstack spec status --change "<name>" --json`. It lists the artifacts, what each one `requires`, and `applyRequires`. The set to write is `applyRequires` plus everything those artifacts require, transitively.
    - For the next artifact whose dependencies exist, run `solstack spec instructions <artifact> --change "<name>" --json`. Follow its `instruction`, use its `template` as the structure, and write the file to `resolvedOutputPath`. Treat `context` and `rules` as constraints for you; never copy them into the file.
-   - Before writing, re-read the artifacts it depends on from disk, and read the relevant code, tests and configuration (read-only). Ground the scope, approach and tasks in what the code actually does, and say which parts are assumptions.
+   - Before writing, re-read the artifacts it depends on from disk, and read the relevant code, tests and configuration (read-only). Use the product's terms from the context documents, and respect its business rules; if the request conflicts with one, raise it. Ground the scope, approach and tasks in what the code actually does, and say which parts are assumptions.
    - Skip an artifact only when `status` reports it `skipped`, or when its instruction says it is optional (for example, `design.md` for a small change). Tell the developer what you skipped and why.
    - Tasks must be concrete steps. Do not write vague tasks such as "explore the codebase"; do that exploration now.
    - Where a standard requires something, such as tests, a migration or a naming scheme, make it part of the tasks. In `design.md` (or the proposal, when there is no design), list the standards that shaped the plan by their IDs, so the apply step reads the same ones.

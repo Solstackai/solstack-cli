@@ -10,6 +10,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { writeProjectConfig } from '../src/project.js';
 
 const TOKEN = 'ssd_test-token';
 const TSX = fileURLToPath(new URL('../../node_modules/.bin/tsx', import.meta.url));
@@ -19,12 +20,14 @@ let gateway: HttpServer;
 let gatewayUrl: string;
 let workdir: string;
 const seenAuthorization: string[] = [];
+const seenRepository: (string | undefined)[] = [];
 
 /** Stands in for the Solstack gateway: stateless Streamable HTTP with one tool. */
 beforeAll(async () => {
   const app = express();
   app.post('/mcp', express.json(), async (req, res) => {
     seenAuthorization.push(req.get('authorization') ?? '');
+    seenRepository.push(req.get('x-solstack-repository'));
     if (req.get('authorization') !== `Bearer ${TOKEN}`) {
       res.status(401).json({ error: 'Valid developer access token required' });
       return;
@@ -53,13 +56,13 @@ afterAll(async () => {
   await rm(workdir, { recursive: true, force: true });
 });
 
-async function startBridge(env: Record<string, string>) {
+async function startBridge(env: Record<string, string>, cwd = workdir) {
   const client = new Client({ name: 'test-agent', version: '1.0.0' });
   await client.connect(
     new StdioClientTransport({
       command: TSX,
       args: [ENTRY, 'mcp'],
-      cwd: workdir,
+      cwd,
       env: { PATH: process.env.PATH ?? '', SOLSTACK_CONFIG_DIR: join(workdir, 'config'), ...env },
       stderr: 'pipe',
     }),
@@ -77,6 +80,29 @@ describe('solstack mcp', () => {
       const result = await client.callTool({ name: 'github_get_issue', arguments: { issue_number: 7 } });
       expect(result.content).toEqual([{ type: 'text', text: 'Issue #7: Fix login' }]);
       expect(seenAuthorization.every((header) => header === `Bearer ${TOKEN}`)).toBe(true);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it('tells the gateway which repository the agent works in', async () => {
+    const repository = join(workdir, 'repo');
+    await writeProjectConfig(repository, {
+      version: 1,
+      server: gatewayUrl,
+      repository: { id: '11111111-1111-4111-8111-111111111111', name: 'acme/web' },
+      agents: [],
+      requiredIntegrations: [],
+      commandPrefix: 'ss',
+      managedFiles: [],
+      standards: [],
+      standardFiles: [],
+    });
+    seenRepository.length = 0;
+    const client = await startBridge({ SOLSTACK_SERVER: gatewayUrl, SOLSTACK_TOKEN: TOKEN }, repository);
+    try {
+      await client.listTools();
+      expect(seenRepository.at(-1)).toBe('11111111-1111-4111-8111-111111111111');
     } finally {
       await client.close();
     }

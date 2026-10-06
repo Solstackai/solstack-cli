@@ -7,6 +7,7 @@ import { setup } from './commands/setup.js';
 import { status } from './commands/status.js';
 import { runMcpBridge } from './mcp-bridge.js';
 import { runOpenSpec } from './openspec.js';
+import type { GuidanceKind } from './api.js';
 import { requireProjectRoot } from './project.js';
 import { installedStandards } from './standards.js';
 import { bold, dim, red, UserError } from './ui.js';
@@ -81,24 +82,46 @@ async function main(argv: string[]): Promise<void> {
       if (!(await status())) process.exitCode = 1;
     });
 
-  program
-    .command('standards')
-    .description("List this repository's engineering standards and where to read them")
-    .option('--json', 'machine-readable output')
-    .action(async (options: { json?: boolean }) => {
-      const standards = await installedStandards(requireProjectRoot());
-      if (options.json) {
-        console.log(JSON.stringify(standards, null, 2));
-      } else if (!standards.length) {
-        console.log('No engineering standards are installed in this repository.');
-      } else {
-        for (const standard of standards) {
-          console.log(`${bold(standard.name)} ${dim(`(${standard.slug})`)}`);
-          if (standard.description) console.log(`  ${standard.description}`);
-          console.log(`  ${dim(standard.path)}`);
+  const listings: { command: string; kind: GuidanceKind; what: string; none: string }[] = [
+    {
+      command: 'standards',
+      kind: 'standard',
+      what: "List this repository's engineering standards and where to read them",
+      none: 'No engineering standards are installed in this repository.',
+    },
+    {
+      command: 'intake',
+      kind: 'intake',
+      what: 'List the rules for writing tasks, comments, pull requests, commit messages and the like',
+      none: 'No intake rules are installed in this repository.',
+    },
+    {
+      command: 'context',
+      kind: 'context',
+      what: 'List the product and business context documents and where to read them',
+      none: 'No product context is installed in this repository.',
+    },
+  ];
+  for (const listing of listings) {
+    program
+      .command(listing.command)
+      .description(listing.what)
+      .option('--json', 'machine-readable output')
+      .action(async (options: { json?: boolean }) => {
+        const documents = await installedStandards(requireProjectRoot(), listing.kind);
+        if (options.json) {
+          console.log(JSON.stringify(documents, null, 2));
+        } else if (!documents.length) {
+          console.log(listing.none);
+        } else {
+          for (const document of documents) {
+            console.log(`${bold(document.name)} ${dim(`(${document.slug})`)}`);
+            if (document.description) console.log(`  ${document.description}`);
+            console.log(`  ${dim(document.path)}`);
+          }
         }
-      }
-    });
+      });
+  }
 
   program.command('mcp').description('Run the MCP bridge agents connect to (started by your agents)');
   program.command('spec').description('Run OpenSpec on this repository, e.g. `solstack spec list`');

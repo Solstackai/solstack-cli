@@ -24,7 +24,8 @@ export async function runMcpBridge(): Promise<void> {
 
   try {
     const root = findProjectRoot();
-    const preferredServer = root ? (await readProjectConfig(root)).server : undefined;
+    const project = root ? await readProjectConfig(root) : null;
+    const preferredServer = project?.server;
     const session = await resolveSession(preferredServer);
     if (!session) {
       failure = problem(
@@ -36,7 +37,13 @@ export async function runMcpBridge(): Promise<void> {
       const client = new Client({ name: 'solstack-bridge', version: VERSION });
       await client.connect(
         new StreamableHTTPClientTransport(new URL('/mcp', session.serverUrl), {
-          requestInit: { headers: { Authorization: `Bearer ${session.token}` } },
+          requestInit: {
+            headers: {
+              Authorization: `Bearer ${session.token}`,
+              // Lets the gateway apply the rules scoped to this repository.
+              ...(project ? { 'X-Solstack-Repository': project.repository.id } : {}),
+            },
+          },
         }),
       );
       upstream = client;

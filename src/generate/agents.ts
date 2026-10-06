@@ -75,7 +75,7 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
           '---',
           `description: ${quote(command.description)}`,
           `argument-hint: ${quote(command.argumentHint)}`,
-          'allowed-tools: Bash(solstack spec:*), Bash(solstack standards:*)',
+          'allowed-tools: Bash(solstack spec:*), Bash(solstack standards:*), Bash(solstack intake:*), Bash(solstack context:*)',
           '---',
           '',
           body(command, '$ARGUMENTS'),

@@ -139,6 +139,8 @@ describe('generateProject', () => {
 
 describe('engineering standards', () => {
   const backend: StandardDoc = {
+    kind: 'standard',
+    target: null,
     slug: 'backend-standards',
     name: 'Backend standards',
     description: 'Use when writing or reviewing backend code.',
@@ -160,8 +162,8 @@ describe('engineering standards', () => {
     // Without a description the skill still says when to use it, or agents would never load it.
     expect(await read('.agents/skills/git-standards/SKILL.md')).toContain('description: "Engineering standard \\"Git\\".');
     expect(saved.standards).toEqual([
-      { slug: 'backend-standards', updatedAt: backend.updatedAt },
-      { slug: 'git-standards', updatedAt: git.updatedAt },
+      { slug: 'backend-standards', updatedAt: backend.updatedAt, kind: 'standard' },
+      { slug: 'git-standards', updatedAt: git.updatedAt, kind: 'standard' },
     ]);
     expect(saved.standardFiles).toHaveLength(12);
   });
@@ -204,12 +206,14 @@ describe('engineering standards', () => {
     await writeProjectConfig(root, saved);
     expect(await installedStandards(root)).toEqual([
       {
+        kind: 'standard',
         slug: 'backend-standards',
         name: 'Backend standards',
         description: 'Use when writing or reviewing backend code.',
         path: '.agents/skills/backend-standards/SKILL.md',
       },
       {
+        kind: 'standard',
         slug: 'git-standards',
         name: 'Git',
         description: 'Engineering standard "Git". Follow it whenever you change code in this repository.',
@@ -218,13 +222,32 @@ describe('engineering standards', () => {
     ]);
   });
 
-  it('tells agents in every command and in AGENTS.md to use the standards', async () => {
+  it('installs intake rules and product context as skills too, listed separately by kind', async () => {
+    const intake: StandardDoc = { ...backend, kind: 'intake', target: 'tasks', slug: 'intake-tasks', name: 'Opening tasks', description: '' };
+    const context: StandardDoc = { ...backend, kind: 'context', slug: 'product-overview', name: 'Product overview', description: '' };
+    const { config: saved } = await generateProject(root, config(), null, [backend, intake, context]);
+    await writeProjectConfig(root, saved);
+
+    expect(existsSync(join(root, '.cursor/skills/intake-tasks/SKILL.md'))).toBe(true);
+    expect(await read('.claude/skills/product-overview/SKILL.md')).toMatch(/description: "Product context \\"Product overview\\"\. Read it/);
+    expect(await read('.claude/skills/intake-tasks/SKILL.md')).toContain('kind: intake');
+    expect((await installedStandards(root, 'standard')).map((s) => s.slug)).toEqual(['backend-standards']);
+    expect((await installedStandards(root, 'intake')).map((s) => s.slug)).toEqual(['intake-tasks']);
+    expect((await installedStandards(root, 'context')).map((s) => s.slug)).toEqual(['product-overview']);
+  });
+
+  it('tells agents in every command and in AGENTS.md to use standards, intake rules and product context', async () => {
     await generateProject(root, config(), null, []);
     for (const command of ['propose', 'apply', 'archive']) {
       expect(await read(`.solstack/commands/${command}.md`), command).toContain('solstack standards');
     }
-    expect(await read('AGENTS.md')).toContain('solstack standards');
-    expect(await read('.claude/commands/ss-apply.md')).toContain('Bash(solstack standards:*)');
+    for (const command of ['propose', 'apply', 'archive']) {
+      expect(await read(`.solstack/commands/${command}.md`), command).toContain('solstack intake');
+    }
+    expect(await read('.solstack/commands/propose.md')).toContain('solstack context');
+    const agents = await read('AGENTS.md');
+    for (const list of ['solstack standards', 'solstack intake', 'solstack context']) expect(agents).toContain(list);
+    expect(await read('.claude/commands/ss-apply.md')).toContain('Bash(solstack intake:*), Bash(solstack context:*)');
   });
 
   it('skips a standard named like a solstack command', async () => {

@@ -18,8 +18,16 @@ const projectConfigSchema = z.object({
   commandPrefix: z.string(),
   /** Files written entirely by solstack, so `update` can remove the ones no longer needed. */
   managedFiles: z.array(z.string()).default([]),
-  /** Engineering standards installed as agent skills, to tell when they are out of date. */
-  standards: z.array(z.object({ slug: z.string(), updatedAt: z.string() })).default([]),
+  /** Standards, intake rules and product context installed as agent skills, to tell when they are out of date. */
+  standards: z
+    .array(
+      z.object({
+        slug: z.string(),
+        updatedAt: z.string(),
+        kind: z.enum(['standard', 'intake', 'context']).default('standard'),
+      }),
+    )
+    .default([]),
   /** The skill files written for those standards. */
   standardFiles: z.array(z.string()).default([]),
 });

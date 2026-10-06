@@ -44,8 +44,15 @@ function report(result: GenerateResult, config: ProjectConfig, setup: Repository
     });
   if (examples.length) console.log(`\nCommands:\n${examples.join('\n')}`);
   if (config.standards.length) {
-    const count = config.standards.length;
-    console.log(`\nEngineering standards: ${count} installed as agent skill${count === 1 ? '' : 's'}.`);
+    const count = (kind: string, one: string, many: string) => {
+      const n = config.standards.filter((s) => s.kind === kind).length;
+      return `${n} ${n === 1 ? one : many}`;
+    };
+    console.log(
+      `\nInstalled as agent skills: ${count('standard', 'engineering standard', 'engineering standards')}, ` +
+        `${count('intake', 'intake rule', 'intake rules')}, ` +
+        `${count('context', 'product context document', 'product context documents')}.`,
+    );
   }
 }
 

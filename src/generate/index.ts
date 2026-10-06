@@ -96,7 +96,7 @@ export async function generateProject(
     const reserved = new Set(WORKFLOW_COMMANDS.map((command) => `${config.commandPrefix}-${command.id}`));
     for (const standard of standards) {
       if (reserved.has(standard.slug)) {
-        result.warnings.push(`The standard "${standard.slug}" has the same name as a solstack command, so it was skipped. Rename it.`);
+        result.warnings.push(`"${standard.slug}" has the same name as a solstack command, so it was skipped. Rename it on the server.`);
         continue;
       }
       const content = standardSkill(standard);
@@ -192,7 +192,7 @@ export async function generateProject(
       standards:
         standards === null
           ? (previous?.standards ?? [])
-          : standards.map(({ slug, updatedAt }) => ({ slug, updatedAt })),
+          : standards.map(({ slug, updatedAt, kind }) => ({ slug, updatedAt, kind })),
     },
   };
 }
