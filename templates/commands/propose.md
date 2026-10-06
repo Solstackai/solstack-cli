@@ -7,6 +7,7 @@ Turn a request into a reviewed plan: an OpenSpec change with a proposal, spec de
 - Specs and changes live in `.solstack/openspec/`. The code lives in the rest of the repository.
 - Run OpenSpec through `solstack spec <arguments>`, never `openspec` directly. `solstack spec` runs the version this repository pins, from the right folder. When OpenSpec's output suggests `openspec <something>`, run `solstack spec <something>` instead.
 - The `solstack` MCP server gives you GitHub and Trello tools that act as the developer. If a tool answers that an integration is not connected, show the developer the link it returns and wait. Do not work around it.
+- The team's engineering standards are installed as skills. `solstack standards` lists them, with what each one covers and the file to read.
 
 ## Input
 
@@ -27,16 +28,19 @@ If there is no input, ask what the developer wants to build or fix, and wait for
 
 3. **Load the project context.** Run `solstack spec context --json`. If `.solstack/openspec/config.yaml` has a `context` field, treat it as constraints on the plan. Do not copy it into any file.
 
-4. **Create the change.** Run `solstack spec new change "<name>"`.
+4. **Load the engineering standards.** Run `solstack standards`. Read every standard whose description covers an area this change touches; when unsure whether one applies, read it. The plan must follow them. If the request conflicts with a standard, do not quietly pick one: point out the conflict and ask.
 
-5. **Write each artifact, in dependency order.** Repeat until everything the apply step needs exists:
+5. **Create the change.** Run `solstack spec new change "<name>"`.
+
+6. **Write each artifact, in dependency order.** Repeat until everything the apply step needs exists:
    - Run `solstack spec status --change "<name>" --json`. It lists the artifacts, what each one `requires`, and `applyRequires`. The set to write is `applyRequires` plus everything those artifacts require, transitively.
    - For the next artifact whose dependencies exist, run `solstack spec instructions <artifact> --change "<name>" --json`. Follow its `instruction`, use its `template` as the structure, and write the file to `resolvedOutputPath`. Treat `context` and `rules` as constraints for you; never copy them into the file.
    - Before writing, re-read the artifacts it depends on from disk, and read the relevant code, tests and configuration (read-only). Ground the scope, approach and tasks in what the code actually does, and say which parts are assumptions.
    - Skip an artifact only when `status` reports it `skipped`, or when its instruction says it is optional (for example, `design.md` for a small change). Tell the developer what you skipped and why.
    - Tasks must be concrete steps. Do not write vague tasks such as "explore the codebase"; do that exploration now.
+   - Where a standard requires something, such as tests, a migration or a naming scheme, make it part of the tasks. In `design.md` (or the proposal, when there is no design), list the standards that shaped the plan by their IDs, so the apply step reads the same ones.
 
-6. **Validate.** Run `solstack spec validate "<name>" --strict` and fix whatever it reports.
+7. **Validate.** Run `solstack spec validate "<name>" --strict` and fix whatever it reports.
 
 ## Finish
 
@@ -44,6 +48,7 @@ Summarize:
 
 - the change name and its folder
 - each artifact you wrote, in a line each, plus anything you skipped and why
+- the standards you applied, and any conflict with them you raised
 - the assumptions you made and any open questions
 
 End with: "The plan is ready for review. When it looks right, run the apply command."

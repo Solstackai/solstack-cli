@@ -8,7 +8,8 @@ import { status } from './commands/status.js';
 import { runMcpBridge } from './mcp-bridge.js';
 import { runOpenSpec } from './openspec.js';
 import { requireProjectRoot } from './project.js';
-import { red, UserError } from './ui.js';
+import { installedStandards } from './standards.js';
+import { bold, dim, red, UserError } from './ui.js';
 import { VERSION } from './version.js';
 
 function handleError(error: unknown): never {
@@ -78,6 +79,25 @@ async function main(argv: string[]): Promise<void> {
     .description('Show what is set up and what is missing')
     .action(async () => {
       if (!(await status())) process.exitCode = 1;
+    });
+
+  program
+    .command('standards')
+    .description("List this repository's engineering standards and where to read them")
+    .option('--json', 'machine-readable output')
+    .action(async (options: { json?: boolean }) => {
+      const standards = await installedStandards(requireProjectRoot());
+      if (options.json) {
+        console.log(JSON.stringify(standards, null, 2));
+      } else if (!standards.length) {
+        console.log('No engineering standards are installed in this repository.');
+      } else {
+        for (const standard of standards) {
+          console.log(`${bold(standard.name)} ${dim(`(${standard.slug})`)}`);
+          if (standard.description) console.log(`  ${standard.description}`);
+          console.log(`  ${dim(standard.path)}`);
+        }
+      }
     });
 
   program.command('mcp').description('Run the MCP bridge agents connect to (started by your agents)');

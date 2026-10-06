@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { generateProject } from '../src/generate/index.js';
 import { runOpenSpec } from '../src/openspec.js';
 import type { StandardDoc } from '../src/api.js';
-import type { ProjectConfig } from '../src/project.js';
+import { writeProjectConfig, type ProjectConfig } from '../src/project.js';
+import { installedStandards } from '../src/standards.js';
 
 const ALL_AGENTS = [
   { id: 'claude-code', name: 'Claude Code' },
@@ -196,6 +197,34 @@ describe('engineering standards', () => {
     const { result } = await generateProject(root, config([ALL_AGENTS[0]!]), null, [backend]);
     expect(await read('.claude/skills/backend-standards/SKILL.md')).toBe('our own\n');
     expect(result.warnings).toEqual([expect.stringContaining('was not written by solstack')]);
+  });
+
+  it('lists installed standards for `solstack standards`', async () => {
+    const { config: saved } = await generateProject(root, config(), null, [git, backend]);
+    await writeProjectConfig(root, saved);
+    expect(await installedStandards(root)).toEqual([
+      {
+        slug: 'backend-standards',
+        name: 'Backend standards',
+        description: 'Use when writing or reviewing backend code.',
+        path: '.agents/skills/backend-standards/SKILL.md',
+      },
+      {
+        slug: 'git-standards',
+        name: 'Git',
+        description: 'Engineering standard "Git". Follow it whenever you change code in this repository.',
+        path: '.agents/skills/git-standards/SKILL.md',
+      },
+    ]);
+  });
+
+  it('tells agents in every command and in AGENTS.md to use the standards', async () => {
+    await generateProject(root, config(), null, []);
+    for (const command of ['propose', 'apply', 'archive']) {
+      expect(await read(`.solstack/commands/${command}.md`), command).toContain('solstack standards');
+    }
+    expect(await read('AGENTS.md')).toContain('solstack standards');
+    expect(await read('.claude/commands/ss-apply.md')).toContain('Bash(solstack standards:*)');
   });
 
   it('skips a standard named like a solstack command', async () => {
