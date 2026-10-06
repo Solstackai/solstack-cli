@@ -69,6 +69,22 @@ export async function status(): Promise<boolean> {
     console.log(dim('  Run `solstack connect` to connect what is missing.'));
   }
 
+  if (config) {
+    const latest = await api.standards(session.serverUrl, session.token, config.repository.id).catch(() => null);
+    const installed = new Map(config.standards.map((s) => [s.slug, s.updatedAt]));
+    const current =
+      latest !== null &&
+      latest.length === installed.size &&
+      latest.every((s) => installed.get(s.slug) === s.updatedAt);
+    const count = `${installed.size} installed as skill${installed.size === 1 ? '' : 's'}`;
+    if (latest === null) console.log(`\n${bold('Standards')}    ${count} ${dim('(could not check the server)')}`);
+    else if (current) console.log(`\n${bold('Standards')}    ${ok(`${count}, up to date`)}`);
+    else {
+      console.log(`\n${bold('Standards')}    ${warn(`${count}; the server has changes. Run \`solstack update\` and commit.`)}`);
+      healthy = false;
+    }
+  }
+
   if (root) {
     const result = await runOpenSpec(root, ['list', '--json']);
     const changes = result.code === 0 ? ((JSON.parse(result.stdout) as { changes?: unknown[] }).changes?.length ?? 0) : null;

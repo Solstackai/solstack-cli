@@ -7,6 +7,14 @@ export interface RepositorySetup {
   server: { url: string; mcpUrl: string };
 }
 
+export interface StandardDoc {
+  slug: string;
+  name: string;
+  description: string;
+  content: string;
+  updatedAt: string;
+}
+
 export interface Me {
   user: { id: string; email: string; name: string; role: 'admin' | 'developer' };
   connections: {
@@ -52,5 +60,11 @@ export const api = {
   repositoryByKey: (serverUrl: string, apiKey: string) => get<RepositorySetup>(serverUrl, '/api/v1/repository', apiKey),
   repository: (serverUrl: string, token: string, id: string) =>
     get<RepositorySetup>(serverUrl, `/api/v1/repositories/${encodeURIComponent(id)}`, token),
+  standardsByKey: (serverUrl: string, apiKey: string) =>
+    get<{ standards: StandardDoc[] }>(serverUrl, '/api/v1/repository/standards', apiKey).then((r) => r.standards),
+  standards: (serverUrl: string, token: string, id: string) =>
+    get<{ standards: StandardDoc[] }>(serverUrl, `/api/v1/repositories/${encodeURIComponent(id)}/standards`, token).then(
+      (r) => r.standards,
+    ),
   me: (serverUrl: string, token: string) => get<Me>(serverUrl, '/api/v1/me', token),
 };

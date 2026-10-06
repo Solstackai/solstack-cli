@@ -36,6 +36,8 @@ export interface AgentAdapter {
   jsonEdits: JsonEdit[];
   /** Markdown files that need a solstack section (e.g. CLAUDE.md importing AGENTS.md). */
   markdownBlocks: { path: string; body: string }[];
+  /** Where the agent reads repository skills (Agent Skills format). Agents without skills omit it. */
+  skillsDir?: string;
   /** Explains what the developer must still do by hand, when the agent has no repository-level MCP config. */
   manualMcpSetup?: string;
 }
@@ -64,6 +66,7 @@ const slash = (name: string) => `/${name}`;
 export const AGENT_ADAPTERS: AgentAdapter[] = [
   {
     id: 'claude-code',
+    skillsDir: '.claude/skills',
     invocation: slash,
     commandFiles: (prefix) =>
       WORKFLOW_COMMANDS.map((command) => ({
@@ -83,6 +86,7 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   },
   {
     id: 'cursor',
+    skillsDir: '.cursor/skills',
     invocation: slash,
     commandFiles: (prefix) =>
       WORKFLOW_COMMANDS.map((command) => ({
@@ -102,6 +106,7 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   },
   {
     id: 'copilot-vscode',
+    skillsDir: '.github/skills',
     invocation: slash,
     commandFiles: (prefix) =>
       WORKFLOW_COMMANDS.map((command) => ({
@@ -113,6 +118,7 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   },
   {
     id: 'codex',
+    skillsDir: '.agents/skills',
     // Codex reads repository skills from .agents/skills and invokes them with `$name`.
     invocation: (name) => `$${name}`,
     commandFiles: (prefix) =>
@@ -133,6 +139,7 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   },
   {
     id: 'devin',
+    skillsDir: '.devin/skills',
     invocation: slash,
     commandFiles: (prefix) =>
       WORKFLOW_COMMANDS.map((command) => ({
@@ -153,6 +160,7 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   },
   {
     id: 'gemini-cli',
+    skillsDir: '.gemini/skills',
     invocation: slash,
     commandFiles: (prefix) =>
       WORKFLOW_COMMANDS.map((command) => ({

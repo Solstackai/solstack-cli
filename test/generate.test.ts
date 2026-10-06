@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { generateProject } from '../src/generate/index.js';
 import { runOpenSpec } from '../src/openspec.js';
+import type { StandardDoc } from '../src/api.js';
 import type { ProjectConfig } from '../src/project.js';
 
 const ALL_AGENTS = [
@@ -25,6 +26,8 @@ function config(agents = ALL_AGENTS, overrides: Partial<ProjectConfig> = {}): Pr
     requiredIntegrations: [{ id: 'github', name: 'GitHub' }],
     commandPrefix: 'ss',
     managedFiles: [],
+    standards: [],
+    standardFiles: [],
     ...overrides,
   };
 }
@@ -43,7 +46,7 @@ afterEach(async () => {
 
 describe('generateProject', () => {
   it('writes command files, MCP config and the OpenSpec folder for every agent', async () => {
-    const { result, config: saved } = await generateProject(root, config(), null);
+    const { result, config: saved } = await generateProject(root, config(), null, []);
 
     for (const path of [
       '.solstack/commands/propose.md',
@@ -76,7 +79,7 @@ describe('generateProject', () => {
   });
 
   it('keeps the OpenSpec folder usable through `solstack spec`', async () => {
-    await generateProject(root, config([]), null);
+    await generateProject(root, config([]), null, []);
     const created = await runOpenSpec(root, ['new', 'change', 'add-dark-mode']);
     expect(created.code, created.stderr).toBe(0);
     expect(existsSync(join(root, '.solstack/openspec/changes/add-dark-mode'))).toBe(true);
@@ -85,8 +88,8 @@ describe('generateProject', () => {
   });
 
   it('changes nothing when run again', async () => {
-    const first = await generateProject(root, config(), null);
-    const second = await generateProject(root, first.config, first.config);
+    const first = await generateProject(root, config(), null, []);
+    const second = await generateProject(root, first.config, first.config, []);
     expect(second.result.written).toEqual([]);
     expect(second.result.removed).toEqual([]);
   });
@@ -98,7 +101,7 @@ describe('generateProject', () => {
     await mkdir(join(root, '.vscode'));
     await writeFile(join(root, '.vscode/mcp.json'), '// team servers\n{ "servers": {} }\n');
 
-    const { result } = await generateProject(root, config(), null);
+    const { result } = await generateProject(root, config(), null, []);
 
     expect(await read('AGENTS.md')).toMatch(/^# Team rules\n\nUse tabs\.\n\n<!-- solstack:start -->/);
     expect(await read('CLAUDE.md')).toMatch(/^Claude-specific notes\.\n\n<!-- solstack:start -->[\s\S]*@AGENTS\.md/);
@@ -109,9 +112,9 @@ describe('generateProject', () => {
 
   it('removes what belonged to agents that are no longer selected', async () => {
     await writeFile(join(root, '.mcp.json'), JSON.stringify({ mcpServers: { sentry: { command: 'sentry-mcp' } } }));
-    const first = await generateProject(root, config(), null);
+    const first = await generateProject(root, config(), null, []);
     const onlyCursor = config(ALL_AGENTS.filter((a) => a.id === 'cursor'));
-    const second = await generateProject(root, { ...onlyCursor, managedFiles: first.config.managedFiles }, first.config);
+    const second = await generateProject(root, { ...onlyCursor, managedFiles: first.config.managedFiles }, first.config, []);
 
     expect(existsSync(join(root, '.claude'))).toBe(false);
     expect(existsSync(join(root, '.agents'))).toBe(false);
@@ -125,10 +128,79 @@ describe('generateProject', () => {
   });
 
   it('renames command files when the prefix changes', async () => {
-    const first = await generateProject(root, config([ALL_AGENTS[0]!]), null);
-    await generateProject(root, { ...first.config, commandPrefix: 'acme' }, first.config);
+    const first = await generateProject(root, config([ALL_AGENTS[0]!]), null, []);
+    await generateProject(root, { ...first.config, commandPrefix: 'acme' }, first.config, []);
     expect(existsSync(join(root, '.claude/commands/acme-propose.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/commands/ss-propose.md'))).toBe(false);
     expect(await read('AGENTS.md')).toContain('/acme-propose');
+  });
+});
+
+describe('engineering standards', () => {
+  const backend: StandardDoc = {
+    slug: 'backend-standards',
+    name: 'Backend standards',
+    description: 'Use when writing or reviewing backend code.',
+    content: '# Backend standards\n\nValidate input with Zod.\n',
+    updatedAt: '2026-10-06T20:00:00.000Z',
+  };
+  const git: StandardDoc = { ...backend, slug: 'git-standards', name: 'Git', description: '', content: '# Git\n' };
+  const SKILL_DIRS = ['.claude/skills', '.cursor/skills', '.github/skills', '.agents/skills', '.devin/skills', '.gemini/skills'];
+
+  it('installs each standard as a skill for every agent', async () => {
+    const { config: saved } = await generateProject(root, config(), null, [backend, git]);
+
+    for (const dir of SKILL_DIRS) {
+      expect(existsSync(join(root, dir, 'backend-standards/SKILL.md')), dir).toBe(true);
+    }
+    const skill = await read('.claude/skills/backend-standards/SKILL.md');
+    expect(skill).toMatch(/^---\nname: backend-standards\ndescription: "Use when writing or reviewing backend code\."\n/);
+    expect(skill).toContain('Validate input with Zod.');
+    // Without a description the skill still says when to use it, or agents would never load it.
+    expect(await read('.agents/skills/git-standards/SKILL.md')).toContain('description: "Engineering standard \\"Git\\".');
+    expect(saved.standards).toEqual([
+      { slug: 'backend-standards', updatedAt: backend.updatedAt },
+      { slug: 'git-standards', updatedAt: git.updatedAt },
+    ]);
+    expect(saved.standardFiles).toHaveLength(12);
+  });
+
+  it('updates changed standards and removes deleted ones', async () => {
+    const first = await generateProject(root, config(), null, [backend, git]);
+    const edited = { ...backend, content: '# Backend standards\n\nUse Zod 4.\n' };
+    const second = await generateProject(root, first.config, first.config, [edited]);
+
+    expect(await read('.cursor/skills/backend-standards/SKILL.md')).toContain('Use Zod 4.');
+    expect(existsSync(join(root, '.cursor/skills/git-standards'))).toBe(false);
+    expect(second.result.removed).toContain('.gemini/skills/git-standards/SKILL.md');
+  });
+
+  it('removes a standard\'s skills from agents that are no longer selected', async () => {
+    const first = await generateProject(root, config(), null, [backend]);
+    await generateProject(root, config(ALL_AGENTS.filter((a) => a.id === 'codex')), first.config, [backend]);
+    expect(existsSync(join(root, '.agents/skills/backend-standards/SKILL.md'))).toBe(true);
+    expect(existsSync(join(root, '.claude'))).toBe(false);
+  });
+
+  it('keeps installed standards when the server could not be reached', async () => {
+    const first = await generateProject(root, config(), null, [backend]);
+    const offline = await generateProject(root, first.config, first.config, null);
+    expect(offline.result.removed).toEqual([]);
+    expect(offline.config.standards).toEqual(first.config.standards);
+    expect(existsSync(join(root, '.claude/skills/backend-standards/SKILL.md'))).toBe(true);
+  });
+
+  it("never overwrites a skill the team wrote themselves", async () => {
+    await mkdir(join(root, '.claude/skills/backend-standards'), { recursive: true });
+    await writeFile(join(root, '.claude/skills/backend-standards/SKILL.md'), 'our own\n');
+    const { result } = await generateProject(root, config([ALL_AGENTS[0]!]), null, [backend]);
+    expect(await read('.claude/skills/backend-standards/SKILL.md')).toBe('our own\n');
+    expect(result.warnings).toEqual([expect.stringContaining('was not written by solstack')]);
+  });
+
+  it('skips a standard named like a solstack command', async () => {
+    const { result } = await generateProject(root, config([ALL_AGENTS[1]!]), null, [{ ...backend, slug: 'ss-propose' }]);
+    expect(await read('.agents/skills/ss-propose/SKILL.md')).toContain('.solstack/commands/propose.md');
+    expect(result.warnings).toEqual([expect.stringContaining('same name as a solstack command')]);
   });
 });

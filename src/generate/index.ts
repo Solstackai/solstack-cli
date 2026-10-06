@@ -2,10 +2,12 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { StandardDoc } from '../api.js';
 import { initOpenSpec } from '../openspec.js';
 import { SOLSTACK_DIR, type ProjectConfig } from '../project.js';
 import { adapterFor, WORKFLOW_COMMANDS, type AgentAdapter, type GeneratedFile, type JsonEdit } from './agents.js';
 import { parseJsonObject, upsertManagedBlock } from './merge.js';
+import { standardSkill } from './standards.js';
 
 const TEMPLATES_DIR = fileURLToPath(new URL('../../templates', import.meta.url));
 
@@ -45,13 +47,17 @@ async function pruneEmptyDirs(root: string, relativeFile: string): Promise<void>
 
 /**
  * Writes everything a repository needs for the selected agents: the shared command instructions, the
- * OpenSpec folder, AGENTS.md, and each agent's command files and MCP configuration. Safe to run again:
- * files the developer owns are merged, and files from agents no longer selected are removed.
+ * OpenSpec folder, AGENTS.md, each agent's command files and MCP configuration, and the repository's
+ * engineering standards as skills. Safe to run again: files the developer owns are merged, and files from
+ * agents or standards no longer selected are removed.
+ *
+ * `standards` is null when they could not be fetched (offline); the installed ones are then left as they are.
  */
 export async function generateProject(
   root: string,
   config: ProjectConfig,
   previous: ProjectConfig | null,
+  standards: StandardDoc[] | null,
 ): Promise<{ result: GenerateResult; config: ProjectConfig }> {
   const result: GenerateResult = { written: [], removed: [], warnings: [], unsupportedAgents: [] };
 
@@ -81,6 +87,31 @@ export async function generateProject(
   }
   for (const adapter of adapters) owned.push(...adapter.commandFiles(config.commandPrefix));
   for (const file of owned) await writeIfChanged(file.path, file.content);
+
+  // Engineering standards, as one skill per standard in every selected agent's skills folder.
+  const previousStandardFiles = new Set(previous?.standardFiles ?? []);
+  let standardFiles = [...previousStandardFiles];
+  if (standards !== null) {
+    standardFiles = [];
+    const reserved = new Set(WORKFLOW_COMMANDS.map((command) => `${config.commandPrefix}-${command.id}`));
+    for (const standard of standards) {
+      if (reserved.has(standard.slug)) {
+        result.warnings.push(`The standard "${standard.slug}" has the same name as a solstack command, so it was skipped. Rename it.`);
+        continue;
+      }
+      const content = standardSkill(standard);
+      for (const adapter of adapters) {
+        if (!adapter.skillsDir) continue;
+        const path = `${adapter.skillsDir}/${standard.slug}/SKILL.md`;
+        if (!previousStandardFiles.has(path) && existsSync(join(root, path))) {
+          result.warnings.push(`${path} already exists and was not written by solstack, so it was left alone.`);
+          continue;
+        }
+        await writeIfChanged(path, content);
+        standardFiles.push(path);
+      }
+    }
+  }
 
   if (!existsSync(join(root, SOLSTACK_DIR, 'openspec'))) {
     await mkdir(join(root, SOLSTACK_DIR), { recursive: true });
@@ -145,5 +176,23 @@ export async function generateProject(
     await pruneEmptyDirs(root, stale);
   }
 
-  return { result, config: { ...config, managedFiles: ownedPaths.sort() } };
+  for (const stale of previousStandardFiles) {
+    if (standardFiles.includes(stale) || !existsSync(join(root, stale))) continue;
+    await rm(join(root, stale));
+    result.removed.push(stale);
+    await pruneEmptyDirs(root, stale);
+  }
+
+  return {
+    result,
+    config: {
+      ...config,
+      managedFiles: ownedPaths.sort(),
+      standardFiles: standardFiles.sort(),
+      standards:
+        standards === null
+          ? (previous?.standards ?? [])
+          : standards.map(({ slug, updatedAt }) => ({ slug, updatedAt })),
+    },
+  };
 }
