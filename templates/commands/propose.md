@@ -6,7 +6,7 @@ Turn a request into a reviewed plan: an OpenSpec change with a proposal, spec de
 
 - Specs and changes live in `.solstack/openspec/`. The code lives in the rest of the repository.
 - Run OpenSpec through `solstack spec <arguments>`, never `openspec` directly. `solstack spec` runs the version this repository pins, from the right folder. When OpenSpec's output suggests `openspec <something>`, run `solstack spec <something>` instead.
-- The `solstack` MCP server gives you GitHub and Trello tools that act as the developer. If a tool answers that an integration is not connected, show the developer the link it returns and wait. Do not work around it.
+- The `solstack` MCP server gives you tools for the team's trackers (GitHub, Trello, Jira, Linear) that act as the developer. If a tool answers that an integration is not connected, show the developer the link it returns and wait. Do not work around it.
 - The team's engineering standards are installed as skills. `solstack standards` lists them, with what each one covers and the file to read.
 - `solstack context` lists documents about the business and the product: what it does, who uses it, its terms and business rules.
 - Anything you write that is not code (a task, issue or card, a comment, a pull request, a commit message) follows the team's intake rules. `solstack intake` lists them; read the one that covers what you are about to write. If the developer asks you to open a task for this change, follow the rules for opening tasks.
@@ -18,6 +18,10 @@ The text after the command is one of:
 - a description of what to build or fix
 - a GitHub issue (`#123`, `owner/repo#123` or an issue URL): read it with the `github_get_issue` tool, including its comments
 - a Trello card (a card URL or ID): read it with the `trello_get_card` tool
+- a Jira issue (`PROJ-123` or an `atlassian.net` URL): read it with `jira_get_issue`
+- a Linear issue (`ENG-123` or a `linear.app` URL): read it with `linear_get_issue`
+
+Jira and Linear keys look alike. When only a key is given, use the tracker this repository works with (`solstack_connections` shows which are connected); if both are connected and it is unclear, ask.
 - a change name in kebab-case, to continue a change that already exists
 
 If there is no input, ask what the developer wants to build or fix, and wait for the answer.

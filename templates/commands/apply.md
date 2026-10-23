@@ -7,7 +7,7 @@ Implement an approved OpenSpec change by working through its task list.
 - Specs and changes live in `.solstack/openspec/`. The code lives in the rest of the repository.
 - Run OpenSpec through `solstack spec <arguments>`, never `openspec` directly. When OpenSpec's output suggests `openspec <something>`, run `solstack spec <something>` instead.
 - OpenSpec reports `allowedEditRoots` as `.solstack` because that is where its files are. That limit applies to planning files only. Implement the code where it belongs in the repository.
-- The `solstack` MCP server gives you GitHub and Trello tools that act as the developer. Ask before posting comments or changing issues or cards.
+- The `solstack` MCP server gives you tools for the team's trackers (GitHub, Trello, Jira, Linear) that act as the developer. Ask before posting comments or changing issues or cards.
 - The team's engineering standards are installed as skills. `solstack standards` lists them, with what each one covers and the file to read.
 - `solstack context` lists documents about the business and the product: what it does, who uses it, its terms and business rules. Use its terms when naming things.
 - Anything you write that is not code (a task, issue or card, a comment, a pull request, a commit message) follows the team's intake rules. `solstack intake` lists them; read the one that covers what you are about to write.
