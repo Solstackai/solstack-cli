@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { writeProjectConfig } from '../src/project.js';
 
 const TOKEN = 'ssd_test-token';
-const TSX = fileURLToPath(new URL('../../node_modules/.bin/tsx', import.meta.url));
+const TSX = fileURLToPath(new URL('../node_modules/.bin/tsx', import.meta.url));
 const ENTRY = fileURLToPath(new URL('../src/index.ts', import.meta.url));
 
 let gateway: HttpServer;
