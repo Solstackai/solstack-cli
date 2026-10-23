@@ -2,6 +2,8 @@
 
 The `solstack` command connects your coding agents (Claude Code, Codex, Cursor, Copilot, Devin Desktop, Gemini CLI) to your team's Solstack server. It gives every repository the same spec-driven workflow (`/ss-propose`, `/ss-apply`, `/ss-verify`, `/ss-archive`), the team's standards as skills, and the GitHub, Trello, Jira and Linear tools.
 
+**Guides:** [Set up a repository](docs/setup-repository.md) (once per repository) · [Developer guide](docs/developer-guide.md) (day to day)
+
 ## Install (each developer, once per computer)
 
 You need Node.js 20.19 or newer.
@@ -47,7 +49,7 @@ An admin adds the repository in Solstack (**Administration → Repositories**) a
 solstack init --key <repository key>
 ```
 
-Commit the files it creates. When the admin changes the repository's agents or standards, run `solstack update` and commit again.
+Commit the files it creates. When the admin changes the repository's agents or standards, run `solstack update` and commit again. The [repository setup guide](docs/setup-repository.md) has the details.
 
 ## Other commands
 
