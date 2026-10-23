@@ -1,6 +1,6 @@
 # Solstack client
 
-The `solstack` command connects your coding agents (Claude Code, Codex, Cursor, Copilot, Devin Desktop, Gemini CLI) to your team's Solstack server. It gives every repository the same spec-driven workflow (`/ss-propose`, `/ss-apply`, `/ss-archive`), the team's standards as skills, and the GitHub, Trello, Jira and Linear tools.
+The `solstack` command connects your coding agents (Claude Code, Codex, Cursor, Copilot, Devin Desktop, Gemini CLI) to your team's Solstack server. It gives every repository the same spec-driven workflow (`/ss-propose`, `/ss-apply`, `/ss-verify`, `/ss-archive`), the team's standards as skills, and the GitHub, Trello, Jira and Linear tools.
 
 ## Install (each developer, once per computer)
 
@@ -32,9 +32,12 @@ Then, in your agent:
 |---|---|
 | `/ss-propose <idea, issue or card>` | Plans the change. Writes specs and tasks, no code |
 | `/ss-apply` | Implements the plan, task by task |
+| `/ss-verify` | Checks the change is really done: tasks, specs covered by tests, scope, standards |
 | `/ss-archive` | Merges the specs and closes the change |
+| `/ss-sync` | Merges a change's specs early, without closing it |
+| `/ss-feedback <what went wrong>` | Reports a problem with the workflow itself to your Solstack admins |
 
-In Codex they are skills: `$ss-propose`, `$ss-apply`, `$ss-archive`.
+In Codex they are skills: `$ss-propose`, `$ss-apply`, and so on.
 
 ## Set up a new repository (once, by whoever owns it)
 

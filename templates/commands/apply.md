@@ -36,4 +36,4 @@ The text after the command is the change name. If it is missing, run `solstack s
 
 ## Finish
 
-Report which tasks you completed, the test results, the standards you followed, any deviation from them and why, and anything left open. If everything is done, end with: "All tasks are complete. Review the changes, then run the archive command."
+Report which tasks you completed, the test results, the standards you followed, any deviation from them and why, and anything left open. If everything is done, end with: "All tasks are complete. Review the changes, then run the verify command."

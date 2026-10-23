@@ -1,7 +1,7 @@
 import { removeEntry, setEntry, type Json } from './merge.js';
 
 export interface WorkflowCommand {
-  id: 'propose' | 'apply' | 'archive';
+  id: 'propose' | 'apply' | 'verify' | 'sync' | 'archive' | 'feedback';
   description: string;
   argumentHint: string;
 }
@@ -9,11 +9,26 @@ export interface WorkflowCommand {
 export const WORKFLOW_COMMANDS: WorkflowCommand[] = [
   {
     id: 'propose',
-    description: 'Plan a change as an OpenSpec proposal, from a description, a GitHub issue or a Trello card',
-    argumentHint: '<description | GitHub issue | Trello card>',
+    description: 'Plan a change as an OpenSpec proposal, from a description or an issue or card in GitHub, Jira, Linear or Trello',
+    argumentHint: '<description | issue | card>',
   },
   { id: 'apply', description: 'Implement an approved OpenSpec change, task by task', argumentHint: '[change-name]' },
+  {
+    id: 'verify',
+    description: 'Check an implemented OpenSpec change against its plan, its specs and the standards before archiving',
+    argumentHint: '[change-name]',
+  },
+  {
+    id: 'sync',
+    description: "Merge an OpenSpec change's spec deltas into the main specs without archiving it",
+    argumentHint: '[change-name]',
+  },
   { id: 'archive', description: 'Archive a finished OpenSpec change and update the specs', argumentHint: '[change-name]' },
+  {
+    id: 'feedback',
+    description: 'Report a problem with the Solstack workflow, its standards or its tools to the team that runs it',
+    argumentHint: '<what went wrong>',
+  },
 ];
 
 export interface GeneratedFile {

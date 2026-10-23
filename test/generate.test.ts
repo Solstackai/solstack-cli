@@ -88,6 +88,18 @@ describe('generateProject', () => {
     expect(JSON.parse(list.stdout).changes.map((c: { name: string }) => c.name)).toEqual(['add-dark-mode']);
   });
 
+  it('writes all six workflow commands for every agent', async () => {
+    await generateProject(root, config(), null, []);
+    for (const command of ['propose', 'apply', 'verify', 'sync', 'archive', 'feedback']) {
+      expect(existsSync(join(root, `.solstack/commands/${command}.md`)), command).toBe(true);
+      expect(existsSync(join(root, `.claude/commands/ss-${command}.md`)), command).toBe(true);
+      expect(existsSync(join(root, `.agents/skills/ss-${command}/SKILL.md`)), command).toBe(true);
+      expect(existsSync(join(root, `.gemini/commands/ss-${command}.toml`)), command).toBe(true);
+    }
+    expect(await read('.solstack/commands/feedback.md')).toContain('solstack_feedback');
+    expect(await read('AGENTS.md')).toContain('/ss-verify');
+  });
+
   it('changes nothing when run again', async () => {
     const first = await generateProject(root, config(), null, []);
     const second = await generateProject(root, first.config, first.config, []);
@@ -238,7 +250,7 @@ describe('engineering standards', () => {
 
   it('tells agents in every command and in AGENTS.md to use standards, intake rules and product context', async () => {
     await generateProject(root, config(), null, []);
-    for (const command of ['propose', 'apply', 'archive']) {
+    for (const command of ['propose', 'apply', 'verify', 'archive']) {
       expect(await read(`.solstack/commands/${command}.md`), command).toContain('solstack standards');
     }
     for (const command of ['propose', 'apply', 'archive']) {
