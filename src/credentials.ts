@@ -60,13 +60,26 @@ export interface Session {
   token: string;
 }
 
+export interface ServerChoice {
+  serverUrl: string | null;
+  /** Why this server: SOLSTACK_SERVER, the repository's .solstack/config.json, or the default sign-in. */
+  source: 'environment' | 'repository' | 'default' | 'none';
+}
+
 /**
- * Resolves which server and token to use. SOLSTACK_SERVER / SOLSTACK_TOKEN override everything (for CI);
- * otherwise a repository's configured server wins over the default login.
+ * Which server to talk to. SOLSTACK_SERVER overrides everything (for CI); otherwise a repository's
+ * configured server wins over the default sign-in.
  */
-export async function resolveSession(preferredServer?: string): Promise<Session | null> {
-  const envServer = process.env.SOLSTACK_SERVER ? normalizeServerUrl(process.env.SOLSTACK_SERVER) : undefined;
-  const serverUrl = envServer ?? preferredServer ?? (await readCredentials()).defaultServer;
+export async function chooseServer(repositoryServer?: string): Promise<ServerChoice> {
+  if (process.env.SOLSTACK_SERVER) return { serverUrl: normalizeServerUrl(process.env.SOLSTACK_SERVER), source: 'environment' };
+  if (repositoryServer) return { serverUrl: repositoryServer, source: 'repository' };
+  const { defaultServer } = await readCredentials();
+  return defaultServer ? { serverUrl: defaultServer, source: 'default' } : { serverUrl: null, source: 'none' };
+}
+
+/** The server to use and the token for it (SOLSTACK_TOKEN, or the stored sign-in), if there is one. */
+export async function resolveSession(repositoryServer?: string): Promise<Session | null> {
+  const { serverUrl } = await chooseServer(repositoryServer);
   if (!serverUrl) return null;
   const token = process.env.SOLSTACK_TOKEN ?? (await readCredentials()).servers[serverUrl]?.token;
   return token ? { serverUrl, token } : null;

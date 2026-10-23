@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { resolveSession } from '../credentials.js';
+import { chooseServer, resolveSession, type ServerChoice } from '../credentials.js';
 import { adapterFor, MCP_SERVER_NAME, WORKFLOW_COMMANDS } from '../generate/agents.js';
-import { findProjectRoot, readProjectConfig } from '../project.js';
+import { findProjectRoot, gitRoot, readProjectConfig } from '../project.js';
 import { bold, dim, ok, warn } from '../ui.js';
 import { connect } from './connect.js';
 import { login } from './login.js';
@@ -25,13 +25,39 @@ async function registerWithCodex(): Promise<void> {
   }
 }
 
+/** Says which server is used and why, so a forgotten default sign-in is never used by surprise. */
+export function describeServer(choice: ServerChoice): string {
+  switch (choice.source) {
+    case 'environment':
+      return `Server: ${choice.serverUrl} (from SOLSTACK_SERVER)`;
+    case 'repository':
+      return `Server: ${choice.serverUrl} (set by this repository in .solstack/config.json)`;
+    case 'default':
+      return `Server: ${choice.serverUrl} (your default sign-in; change it with \`solstack login --server <url>\`)`;
+    case 'none':
+      return 'Server: not chosen yet; you will be asked for its address.';
+  }
+}
+
 /** Everything a developer does once per machine and repository: sign in, connect integrations, wire agents. */
 export async function setup(): Promise<void> {
   const root = findProjectRoot();
   const config = root ? await readProjectConfig(root) : null;
 
-  console.log(bold('1. Sign in'));
-  if (await resolveSession(config?.server)) console.log(ok('Already signed in.'));
+  console.log(bold(describeServer(await chooseServer(config?.server))));
+  const repository = root ? null : await gitRoot();
+  if (repository) {
+    console.log(
+      warn(
+        `${repository} is not set up with Solstack yet, so only your account is set up here. ` +
+          'To set up this repository, run: solstack init --key <repository key>',
+      ),
+    );
+  }
+
+  console.log(bold('\n1. Sign in'));
+  const session = await resolveSession(config?.server);
+  if (session) console.log(ok(`Already signed in to ${session.serverUrl}.`));
   else await login({ server: config?.server });
 
   console.log(bold('\n2. Connect integrations'));
