@@ -1,6 +1,6 @@
 {
   "name": "solstack",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Spec-driven development with your coding agents, connected to your Solstack server: repository setup, workflow commands and the MCP bridge.",
   "keywords": [
     "solstack",
