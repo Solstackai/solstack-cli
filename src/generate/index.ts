@@ -94,15 +94,16 @@ export async function generateProject(
   if (standards !== null) {
     standardFiles = [];
     const reserved = new Set(WORKFLOW_COMMANDS.map((command) => `${config.commandPrefix}-${command.id}`));
+    // Some agents share a skills folder (Codex and Antigravity both read .agents/skills): write each once.
+    const skillsDirs = [...new Set(adapters.flatMap((adapter) => (adapter.skillsDir ? [adapter.skillsDir] : [])))];
     for (const standard of standards) {
       if (reserved.has(standard.slug)) {
         result.warnings.push(`"${standard.slug}" has the same name as a solstack command, so it was skipped. Rename it on the server.`);
         continue;
       }
       const content = standardSkill(standard);
-      for (const adapter of adapters) {
-        if (!adapter.skillsDir) continue;
-        const path = `${adapter.skillsDir}/${standard.slug}/SKILL.md`;
+      for (const skillsDir of skillsDirs) {
+        const path = `${skillsDir}/${standard.slug}/SKILL.md`;
         if (!previousStandardFiles.has(path) && existsSync(join(root, path))) {
           result.warnings.push(`${path} already exists and was not written by solstack, so it was left alone.`);
           continue;

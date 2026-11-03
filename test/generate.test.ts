@@ -16,6 +16,7 @@ const ALL_AGENTS = [
   { id: 'copilot-vscode', name: 'GitHub Copilot (VS Code)' },
   { id: 'devin', name: 'Devin Desktop' },
   { id: 'gemini-cli', name: 'Gemini CLI' },
+  { id: 'antigravity', name: 'Antigravity' },
 ];
 
 function config(agents = ALL_AGENTS, overrides: Partial<ProjectConfig> = {}): ProjectConfig {
@@ -86,6 +87,30 @@ describe('generateProject', () => {
     expect(existsSync(join(root, '.solstack/openspec/changes/add-dark-mode'))).toBe(true);
     const list = await runOpenSpec(root, ['list', '--json']);
     expect(JSON.parse(list.stdout).changes.map((c: { name: string }) => c.name)).toEqual(['add-dark-mode']);
+  });
+
+  it('gives Antigravity its workflows and shares .agents/skills with Codex without conflicts', async () => {
+    const standard: StandardDoc = {
+      kind: 'standard',
+      target: null,
+      slug: 'backend-standards',
+      name: 'Backend standards',
+      description: 'Use when writing backend code.',
+      content: '# Backend\n',
+      updatedAt: '2026-11-03T00:00:00.000Z',
+    };
+    const { result, config: saved } = await generateProject(root, config(), null, [standard]);
+    expect(await read('.agents/workflows/ss-propose.md')).toMatch(/^---\ndescription: "Plan a change/);
+    expect(existsSync(join(root, '.agents/workflows/ss-feedback.md'))).toBe(true);
+    expect(result.warnings).toEqual([]);
+    expect(saved.standardFiles.filter((f) => f === '.agents/skills/backend-standards/SKILL.md')).toHaveLength(1);
+
+    // Dropping Codex keeps the shared skill, because Antigravity still uses it.
+    const withoutCodex = config(ALL_AGENTS.filter((a) => a.id !== 'codex'));
+    await generateProject(root, { ...withoutCodex, managedFiles: saved.managedFiles, standardFiles: saved.standardFiles, standards: saved.standards }, saved, [standard]);
+    expect(existsSync(join(root, '.agents/skills/backend-standards/SKILL.md'))).toBe(true);
+    expect(existsSync(join(root, '.agents/skills/ss-propose/SKILL.md'))).toBe(false);
+    expect(existsSync(join(root, '.agents/workflows/ss-propose.md'))).toBe(true);
   });
 
   it('writes all six workflow commands for every agent', async () => {

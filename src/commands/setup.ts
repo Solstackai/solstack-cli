@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { registerWithAntigravity } from '../antigravity.js';
 import { chooseServer, resolveSession, type ServerChoice } from '../credentials.js';
 import { adapterFor, MCP_SERVER_NAME, WORKFLOW_COMMANDS } from '../generate/agents.js';
 import { findProjectRoot, gitRoot, readProjectConfig } from '../project.js';
@@ -23,6 +24,15 @@ async function registerWithCodex(): Promise<void> {
     await run('codex', ['mcp', 'add', MCP_SERVER_NAME, '--', 'solstack', 'mcp']);
     console.log(ok('Added the solstack MCP server to Codex.'));
   }
+}
+
+async function reportAntigravity(): Promise<void> {
+  const result = await registerWithAntigravity();
+  const manual = 'add an MCP server named "solstack" with command `solstack` and argument `mcp` (Manage MCP servers → View raw config)';
+  if (result.status === 'added') console.log(ok(`Added the solstack MCP server to Antigravity (${result.path}).`));
+  else if (result.status === 'present') console.log(ok('Antigravity already knows the solstack MCP server.'));
+  else if (result.status === 'unreadable') console.log(warn(`${result.path} is not plain JSON, so it was left alone. In Antigravity, ${manual}.`));
+  else console.log(warn(`Antigravity's settings were not found. Once it is installed, run \`solstack setup\` again, or ${manual}.`));
 }
 
 /** Says which server is used and why, so a forgotten default sign-in is never used by surprise. */
@@ -71,6 +81,7 @@ export async function setup(): Promise<void> {
       const adapter = adapterFor(agent.id);
       if (!adapter) continue;
       if (agent.id === 'codex') await registerWithCodex();
+      else if (agent.id === 'antigravity') await reportAntigravity();
       else if (adapter.manualMcpSetup) console.log(warn(`${agent.name}: ${adapter.manualMcpSetup}`));
       else console.log(ok(`${agent.name}: configured by the repository.`));
       if (agent.id === 'claude-code') {

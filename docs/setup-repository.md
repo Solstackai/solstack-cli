@@ -9,7 +9,7 @@ Before you start: the Solstack server is running, you can sign in to it as an ad
 **Administration → Repositories → Add repository**
 
 - **Name**: e.g. `acme/web`.
-- **Supported agents**: the agents your team uses (Claude Code, Codex, Cursor, Copilot, Devin Desktop, Gemini CLI).
+- **Supported agents**: the agents your team uses (Claude Code, Codex, Cursor, Copilot, Antigravity, Devin Desktop, Gemini CLI). Gemini CLI only works with enterprise or API-key accounts now; for personal Google accounts choose Antigravity.
 - **Required integrations**: the trackers developers must connect for this repository (GitHub, Jira, Linear, Trello).
 
 Copy the **API key** it shows. It is shown once; if you lose it, use **Rotate key**.
@@ -35,7 +35,7 @@ Add `--server https://your-solstack-server` if that server is not your default s
 | Specs and changes (OpenSpec) | `.solstack/openspec/` |
 | The workflow commands' instructions | `.solstack/commands/` |
 | A short Solstack section | `AGENTS.md` (and `CLAUDE.md` for Claude Code) |
-| Commands for each agent | `.claude/commands/`, `.cursor/commands/`, `.github/prompts/`, `.agents/skills/`, … |
+| Commands for each agent | `.claude/commands/`, `.cursor/commands/`, `.github/prompts/`, `.agents/skills/` (Codex), `.agents/workflows/` (Antigravity), … |
 | Standards, intake rules and product context, as skills | each agent's `skills/` folder |
 | The MCP server entry | `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `.gemini/settings.json` |
 

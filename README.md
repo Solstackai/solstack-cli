@@ -1,6 +1,6 @@
 # Solstack client
 
-The `solstack` command connects your coding agents (Claude Code, Codex, Cursor, Copilot, Devin Desktop, Gemini CLI) to your team's Solstack server. It gives every repository the same spec-driven workflow (`/ss-propose`, `/ss-apply`, `/ss-verify`, `/ss-archive`), the team's standards as skills, and the GitHub, Trello, Jira and Linear tools.
+The `solstack` command connects your coding agents (Claude Code, Codex, Cursor, Copilot, Antigravity, Devin Desktop, Gemini CLI) to your team's Solstack server. It gives every repository the same spec-driven workflow (`/ss-propose`, `/ss-apply`, `/ss-verify`, `/ss-archive`), the team's standards as skills, and the GitHub, Trello, Jira and Linear tools.
 
 **Guides:** [Set up a repository](docs/setup-repository.md) (once per repository) · [Developer guide](docs/developer-guide.md) (day to day)
 

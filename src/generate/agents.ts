@@ -174,6 +174,22 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
       'Devin Desktop keeps MCP servers in your user settings. Add a server named "solstack" with command `solstack` and argument `mcp`.',
   },
   {
+    id: 'antigravity',
+    // Antigravity (IDE and CLI) runs workflows from .agents/workflows and reads skills from .agents/skills,
+    // the same folder as Codex.
+    skillsDir: '.agents/skills',
+    invocation: slash,
+    commandFiles: (prefix) =>
+      WORKFLOW_COMMANDS.map((command) => ({
+        path: `.agents/workflows/${prefix}-${command.id}.md`,
+        content: ['---', `description: ${quote(command.description)}`, '---', '', body(command, TYPED_INPUT)].join('\n'),
+      })),
+    jsonEdits: [],
+    markdownBlocks: [],
+    manualMcpSetup:
+      'Antigravity keeps MCP servers in your user settings. `solstack setup` adds the solstack server to its mcp_config.json.',
+  },
+  {
     id: 'gemini-cli',
     skillsDir: '.gemini/skills',
     invocation: slash,
