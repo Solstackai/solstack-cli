@@ -6,6 +6,7 @@ Check that an implemented OpenSpec change is really done, before it is archived.
 
 - Specs and changes live in `.solstack/openspec/`. Run OpenSpec through `solstack spec <arguments>`, never `openspec` directly.
 - The team's engineering standards are installed as skills. `solstack standards` lists them, with what each one covers and the file to read.
+- `solstack context` lists documents about the business and the product: what it does, who uses it, its terms and business rules.
 
 ## Input
 
@@ -20,7 +21,8 @@ Run `solstack spec instructions apply --change "<name>" --json` and read every f
 3. **Scope.** Compare what changed (`git diff` against the base branch, plus uncommitted changes) with the tasks and the design. List changes the plan does not explain.
 4. **Tests.** Run the project's tests and linters. Report failures with the relevant output.
 5. **Standards.** Run `solstack standards`, read the standards the design lists and any other that covers the changed code, and check the changes against them. List each deviation with the file and the rule.
-6. **OpenSpec.** Run `solstack spec validate "<name>" --strict`.
+6. **Product context.** Run `solstack context`, read the documents that cover the area this change touches, and check that it respects their business rules and uses their terms. List each conflict with the file and the document.
+7. **OpenSpec.** Run `solstack spec validate "<name>" --strict`.
 
 ## Finish
 

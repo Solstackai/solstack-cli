@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -10,6 +11,7 @@ import { guidanceIsCurrent } from './standards.js';
 import { VERSION } from './version.js';
 
 const STATUS_TOOL = 'solstack_status';
+const REPOSITORY_HEADER = 'X-Solstack-Repository';
 
 const GUIDANCE_CHECK_MS = 3_000;
 const OUTDATED_GUIDANCE =
@@ -46,6 +48,8 @@ export async function runMcpBridge(): Promise<void> {
   let upstream: Client | null = null;
   let failure: string | null = null;
   let notice: string | null = null;
+  /** Set when the folder this started in is not a repository, so the agent's workspace folders can say which it is. */
+  let useWorkspaceFolders: ((folders: string[]) => Promise<void>) | null = null;
 
   try {
     const root = findProjectRoot();
@@ -60,19 +64,24 @@ export async function runMcpBridge(): Promise<void> {
       );
     } else {
       const client = new Client({ name: 'solstack-bridge', version: VERSION });
-      await client.connect(
-        new StreamableHTTPClientTransport(new URL('/mcp', session.serverUrl), {
-          requestInit: {
-            headers: {
-              Authorization: `Bearer ${session.token}`,
-              // Lets the gateway apply the rules scoped to this repository.
-              ...(project ? { 'X-Solstack-Repository': project.repository.id } : {}),
-            },
-          },
-        }),
-      );
+      const headers: Record<string, string> = { Authorization: `Bearer ${session.token}` };
+      // Lets the gateway apply the rules and tools scoped to this repository.
+      if (project) headers[REPOSITORY_HEADER] = project.repository.id;
+      await client.connect(new StreamableHTTPClientTransport(new URL('/mcp', session.serverUrl), { requestInit: { headers } }));
       upstream = client;
       if (project) notice = await guidanceNotice(session, project);
+      else {
+        useWorkspaceFolders = async (folders) => {
+          for (const folder of folders) {
+            const found = findProjectRoot(folder);
+            const config = found ? await readProjectConfig(found).catch(() => null) : null;
+            if (config?.server === session.serverUrl) {
+              headers[REPOSITORY_HEADER] = config.repository.id;
+              return;
+            }
+          }
+        };
+      }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -92,7 +101,19 @@ export async function runMcpBridge(): Promise<void> {
     },
   );
 
+  // Agents do not all start this in the repository they work on. Those that report their workspace folders still get its rules.
+  let repositoryFound: Promise<void> = Promise.resolve();
+  server.oninitialized = () => {
+    if (!useWorkspaceFolders || !server.getClientCapabilities()?.roots) return;
+    const use = useWorkspaceFolders;
+    repositoryFound = server
+      .listRoots(undefined, { timeout: GUIDANCE_CHECK_MS })
+      .then(({ roots }) => use(roots.filter((root) => root.uri.startsWith('file:')).map((root) => fileURLToPath(root.uri))))
+      .catch(() => undefined);
+  };
+
   server.setRequestHandler(ListToolsRequestSchema, async (request) => {
+    await repositoryFound;
     if (upstream) return upstream.listTools(request.params);
     return {
       tools: [
@@ -106,6 +127,7 @@ export async function runMcpBridge(): Promise<void> {
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToolResult> => {
+    await repositoryFound;
     if (upstream) return (await upstream.callTool(request.params)) as CallToolResult;
     return { isError: true, content: [{ type: 'text', text: failure ?? problem('unknown error') }] };
   });

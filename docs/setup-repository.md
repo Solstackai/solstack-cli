@@ -10,11 +10,11 @@ Before you start: the Solstack server is running, you can sign in to it as an ad
 
 - **Name**: e.g. `acme/web`.
 - **Supported agents**: the agents your team uses (Claude Code, Codex, Cursor, Copilot, Antigravity, Devin Desktop, Gemini CLI). Gemini CLI only works with enterprise or API-key accounts now; for personal Google accounts choose Antigravity.
-- **Required integrations**: the trackers developers must connect for this repository (GitHub, Jira, Linear, Trello).
+- **Required integrations**: the trackers developers must connect for this repository (GitHub, Jira, Linear, Trello). Agents working in it see only these trackers' tools. Leave it empty to show them all.
 
 Copy the **API key** it shows. It is shown once; if you lose it, use **Rotate key**.
 
-Optional, any time: under **Standards**, **Intake** and **Product context**, choose whether each document applies to all repositories or to selected ones, such as this one.
+Optional, any time: under **Standards**, **Intake** and **Product context**, choose whether each document applies to all repositories or to selected ones, such as this one. A repository can have its own intake rule for a section, and its own standard that replaces a general one. To see the result, select **What agents receive** next to the repository.
 
 ## 2. Initialize the repository
 

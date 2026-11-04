@@ -1,12 +1,13 @@
 import type { Server as HttpServer } from 'node:http';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -60,8 +61,16 @@ afterAll(async () => {
   await rm(workdir, { recursive: true, force: true });
 });
 
-async function startBridge(env: Record<string, string>, cwd = workdir) {
-  const client = new Client({ name: 'test-agent', version: '1.0.0' });
+async function startBridge(env: Record<string, string>, cwd = workdir, workspaceFolders?: string[]) {
+  const client = new Client(
+    { name: 'test-agent', version: '1.0.0' },
+    { capabilities: workspaceFolders ? { roots: {} } : {} },
+  );
+  if (workspaceFolders) {
+    client.setRequestHandler(ListRootsRequestSchema, async () => ({
+      roots: workspaceFolders.map((folder) => ({ uri: pathToFileURL(folder).href })),
+    }));
+  }
   await client.connect(
     new StdioClientTransport({
       command: TSX,
@@ -110,6 +119,68 @@ describe('solstack mcp', () => {
     } finally {
       await client.close();
     }
+  });
+
+  describe('starting outside the repository', () => {
+    const REPOSITORY_ID = '33333333-3333-4333-8333-333333333333';
+
+    async function repositoryFolder(name: string, server: string): Promise<string> {
+      const folder = join(workdir, name);
+      await writeProjectConfig(folder, {
+        version: 1,
+        server,
+        repository: { id: REPOSITORY_ID, name: 'acme/roots' },
+        agents: [],
+        requiredIntegrations: [],
+        commandPrefix: 'ss',
+        managedFiles: [],
+        standards: [],
+        standardFiles: [],
+      });
+      return folder;
+    }
+
+    async function seenAfterListingTools(cwd: string, workspaceFolders?: string[]) {
+      seenRepository.length = 0;
+      const client = await startBridge({ SOLSTACK_SERVER: gatewayUrl, SOLSTACK_TOKEN: TOKEN }, cwd, workspaceFolders);
+      try {
+        await client.listTools();
+        return seenRepository.at(-1);
+      } finally {
+        await client.close();
+      }
+    }
+
+    it('finds it from the workspace folders the agent reports', async () => {
+      const folder = await repositoryFolder('from-roots', gatewayUrl);
+      const nested = join(folder, 'packages', 'api');
+      await mkdir(nested, { recursive: true });
+      const elsewhere = await mkdtemp(join(tmpdir(), 'solstack-elsewhere-'));
+      try {
+        expect(await seenAfterListingTools(elsewhere, [nested])).toBe(REPOSITORY_ID);
+      } finally {
+        await rm(elsewhere, { recursive: true, force: true });
+      }
+    });
+
+    it('ignores a repository set up with another server', async () => {
+      const folder = await repositoryFolder('other-server', 'https://other.example.com');
+      const elsewhere = await mkdtemp(join(tmpdir(), 'solstack-elsewhere-'));
+      try {
+        expect(await seenAfterListingTools(elsewhere, [folder])).toBeUndefined();
+      } finally {
+        await rm(elsewhere, { recursive: true, force: true });
+      }
+    });
+
+    it('still works when the agent reports no workspace folders', async () => {
+      const elsewhere = await mkdtemp(join(tmpdir(), 'solstack-elsewhere-'));
+      try {
+        expect(await seenAfterListingTools(elsewhere)).toBeUndefined();
+      } finally {
+        await rm(elsewhere, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('installed guidance', () => {
