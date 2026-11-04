@@ -113,7 +113,12 @@ export function parseCommitMessage(text: string): { subject: string; body: strin
     if (/^# -+ >8 -+$/.test(line)) break;
     if (!line.startsWith('#')) lines.push(line);
   }
-  const [subject = '', ...rest] = lines.join('\n').trim().split('\n');
+  return splitCommitMessage(lines.join('\n'));
+}
+
+/** A stored commit message, where lines starting with # are part of the message. */
+export function splitCommitMessage(text: string): { subject: string; body: string } {
+  const [subject = '', ...rest] = text.trim().split('\n');
   return { subject: subject.trim(), body: rest.join('\n').trim() };
 }
 

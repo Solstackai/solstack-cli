@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { checkBranch, checkCommit, checkPullRequest } from './commands/check.js';
+import { checkBranch, checkCommit, checkCommits, checkOpenSpec, checkPullRequest } from './commands/check.js';
+import { ciInit, ciRemove } from './commands/ci.js';
 import { connect } from './commands/connect.js';
 import { installHooks, uninstallHooks } from './commands/hooks.js';
 import { init, update } from './commands/init.js';
@@ -157,6 +158,33 @@ async function main(argv: string[]): Promise<void> {
     .action(async (options: { title: string; body?: string; bodyFile?: string; branch?: string; quiet?: boolean }) =>
       finish(await checkPullRequest(options)),
     );
+
+  check
+    .command('commits')
+    .description('Check every commit message between two points, as the CI workflow does')
+    .requiredOption('--base <ref>', 'where the commits start, not included')
+    .option('--head <ref>', 'where they end (default: HEAD)')
+    .option('--quiet', 'print only what fails')
+    .action(async (options: { base: string; head?: string; quiet?: boolean }) => finish(await checkCommits(options)));
+  check
+    .command('openspec')
+    .description('Check that the changes between two points come with a valid OpenSpec change')
+    .requiredOption('--base <ref>', 'what the changes are compared with')
+    .option('--head <ref>', 'where they end (default: HEAD)')
+    .option('--mode <mode>', 'warn or block', 'block')
+    .option('--title <title>', 'pull request title, where [no-spec] skips this check')
+    .option('--quiet', 'print only what fails')
+    .action(async (options: { base: string; head?: string; mode: string; title?: string; quiet?: boolean }) => {
+      if (options.mode !== 'warn' && options.mode !== 'block') throw new UserError('--mode must be warn or block.');
+      finish(await checkOpenSpec({ ...options, mode: options.mode }));
+    });
+
+  const ci = program.command('ci').description("Run the team's checks on each pull request, with GitHub Actions");
+  ci.command('init')
+    .description('Write the workflow into this repository, or update it')
+    .option('--openspec <mode>', 'require an OpenSpec change on pull requests: off, warn or block')
+    .action(ciInit);
+  ci.command('remove').description('Delete the workflow').action(ciRemove);
 
   const hooks = program.command('hooks').description("Run the team's checks on each commit and push, in this clone only");
   hooks.command('install').description('Install the commit-msg and pre-push hooks').action(installHooks);

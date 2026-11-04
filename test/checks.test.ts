@@ -288,6 +288,192 @@ describe('in a real git repository', () => {
     }
   }, 60_000);
 
+  describe('in a pull request', () => {
+    const VALID_PROPOSAL = '## Why\nUsers need a way to log in, because the whole product sits behind an account.\n\n## What Changes\n- Add a login form.\n';
+    const VALID_SPEC = '## ADDED Requirements\n### Requirement: Login\nThe system SHALL let users log in.\n\n#### Scenario: Correct password\n- **WHEN** a user enters the correct password\n- **THEN** they are signed in\n';
+
+    async function addFile(path: string, content = 'x\n', message = 'Add a file'): Promise<void> {
+      await mkdir(join(repo, path, '..'), { recursive: true });
+      await writeFile(join(repo, path), content);
+      await exec('git', ['add', '-A']);
+      await exec('git', ['commit', '-m', message, '--no-verify']);
+    }
+
+    async function startPullRequest(): Promise<void> {
+      await exec('git', ['commit', '--allow-empty', '-m', 'Start']);
+      await exec('git', ['switch', '-q', '-c', 'feature']);
+    }
+
+    async function addChange(name: string, valid = true): Promise<void> {
+      const dir = `.solstack/openspec/changes/${name}`;
+      await addFile(`${dir}/proposal.md`, valid ? VALID_PROPOSAL : 'Not a proposal\n');
+      if (valid) await addFile(`${dir}/specs/login/spec.md`, VALID_SPEC);
+    }
+
+    const openspec = (...extra: string[]) => solstack('check', 'openspec', '--base', 'main', ...extra);
+
+    beforeEach(async () => {
+      await mkdir(join(repo, '.solstack/openspec/changes'), { recursive: true });
+      await mkdir(join(repo, '.solstack/openspec/specs'), { recursive: true });
+      await writeFile(join(repo, '.solstack/openspec/config.yaml'), 'schema: spec-driven\n');
+    });
+
+    it('checks every commit, and names the ones that fail', async () => {
+      await setChecks({ commits: { mode: 'block', checks: { titlePattern: '^\\[ISSUE_\\d+\\] - ' } } });
+      await startPullRequest();
+      await commit('[ISSUE_1] - Good one', '--no-verify');
+      await commit('Bad one', '--no-verify');
+      await commit("Merge branch 'main' into feature", '--no-verify');
+      const hash = (await exec('git', ['log', '--format=%h', '-1', 'HEAD~1'])).output.trim();
+
+      const result = await solstack('check', 'commits', '--base', 'main');
+      expect(result.code).toBe(1);
+      expect(result.output).toContain(`${hash}: The subject must match`);
+      expect(result.output).not.toContain('Merge branch');
+    }, 60_000);
+
+    it('keeps lines starting with # in a stored commit message', async () => {
+      await setChecks({ commits: { mode: 'block', checks: { bodyHeadings: ['Steps to test'] } } });
+      await startPullRequest();
+      await commit('Add login', '--no-verify', '--cleanup=verbatim', '-m', '## Steps to test\n1. Log in.');
+      expect((await solstack('check', 'commits', '--base', 'main')).code).toBe(0);
+    }, 60_000);
+
+    it('passes with nothing to check, and with no commit checks on', async () => {
+      await setChecks({ commits: { mode: 'block', checks: { titleMaxLength: 3 } } });
+      await startPullRequest();
+      expect((await solstack('check', 'commits', '--base', 'main')).code).toBe(0);
+      await rm(join(repo, '.solstack/checks.json'));
+      await commit('A long subject', '--no-verify');
+      const result = await solstack('check', 'commits', '--base', 'main');
+      expect(result.code).toBe(0);
+      expect(result.output).toContain('No checks are turned on');
+    }, 60_000);
+
+    it('requires an OpenSpec change for a code change', async () => {
+      await startPullRequest();
+      await addFile('src/login.ts');
+      const result = await openspec();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('no OpenSpec change');
+      expect(result.output).toContain('[no-spec]');
+    }, 60_000);
+
+    it('only warns in warn mode', async () => {
+      await startPullRequest();
+      await addFile('src/login.ts');
+      const result = await openspec('--mode', 'warn');
+      expect(result.code).toBe(0);
+      expect(result.output).toContain('no OpenSpec change');
+    }, 60_000);
+
+    it('accepts a valid change, and rejects an invalid one', async () => {
+      await startPullRequest();
+      await addFile('src/login.ts');
+      await addChange('add-login');
+      expect((await openspec()).code).toBe(0);
+
+      await addChange('broken', false);
+      const result = await openspec();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('"broken" is not valid');
+    }, 90_000);
+
+    it('accepts a change that was archived in the pull request', async () => {
+      await startPullRequest();
+      await addFile('src/login.ts');
+      await addFile('.solstack/openspec/changes/archive/2026-11-04-add-login/proposal.md', VALID_PROPOSAL);
+      expect((await openspec()).code).toBe(0);
+    }, 60_000);
+
+    it('skips a pull request that only touches Solstack files, or is marked [no-spec]', async () => {
+      await startPullRequest();
+      await addFile('.solstack/commands/verify.md');
+      await addFile('AGENTS.md');
+      expect((await openspec()).code).toBe(0);
+
+      await addFile('src/typo.ts');
+      expect((await openspec()).code).toBe(1);
+      const skipped = await openspec('--title', 'Fix a typo [no-spec]');
+      expect(skipped.code).toBe(0);
+      expect(skipped.output).toContain('[no-spec]');
+    }, 90_000);
+
+    it('reports failures as GitHub annotations in CI', async () => {
+      await setChecks({ pull_requests: { mode: 'warn', checks: { titleMaxLength: 3 } } });
+      env.GITHUB_ACTIONS = 'true';
+      try {
+        const result = await solstack('check', 'pr', '--title', 'Too long');
+        expect(result.code).toBe(0);
+        expect(result.output).toContain('::warning::The title is longer than 3');
+      } finally {
+        delete env.GITHUB_ACTIONS;
+      }
+    }, 30_000);
+  });
+
+  describe('the CI workflow', () => {
+    const WORKFLOW = '.github/workflows/solstack-check.yml';
+    const workflow = () => readFile(join(repo, WORKFLOW), 'utf8');
+
+    it('is only added when asked for, and says what a required check needs', async () => {
+      await expect(workflow()).rejects.toThrow();
+      const result = await solstack('ci', 'init');
+      expect(result.code).toBe(0);
+      expect(result.output).toContain('required status check');
+      expect(result.output).toContain('can still be merged');
+
+      const text = await workflow();
+      expect(text).toContain('check pr');
+      expect(text).toContain('check commits');
+      expect(text).not.toContain('check openspec');
+      expect(text).toContain('contents: read');
+      expect(text).toContain('fetch-depth: 0');
+      expect(text).toContain('solstack-check:');
+    }, 60_000);
+
+    it('adds the OpenSpec check when asked, and keeps that choice when updated', async () => {
+      await solstack('ci', 'init', '--openspec', 'warn');
+      expect(await workflow()).toContain('check openspec --mode warn');
+      await solstack('ci', 'init');
+      expect(await workflow()).toContain('check openspec --mode warn');
+      await solstack('ci', 'init', '--openspec', 'off');
+      expect(await workflow()).not.toContain('check openspec');
+      expect((await solstack('ci', 'init', '--openspec', 'maybe')).code).toBe(1);
+    }, 90_000);
+
+    it('never puts pull request text in a script, where a crafted title could run commands', async () => {
+      await solstack('ci', 'init', '--openspec', 'block');
+      const lines = (await workflow()).split('\n');
+      let inRun = false;
+      let indent = 0;
+      for (const line of lines) {
+        const spaces = line.length - line.trimStart().length;
+        if (inRun && line.trim() && spaces <= indent) inRun = false;
+        if (/^\s*run:/.test(line)) {
+          inRun = true;
+          indent = spaces;
+          expect(line).not.toContain('${{');
+        } else if (inRun) {
+          expect(line).not.toContain('${{');
+        }
+      }
+    }, 30_000);
+
+    it('leaves a workflow it did not write alone, and removes its own', async () => {
+      await mkdir(join(repo, '.github/workflows'), { recursive: true });
+      await writeFile(join(repo, WORKFLOW), 'name: Mine\n');
+      expect((await solstack('ci', 'init')).code).toBe(1);
+      expect((await solstack('ci', 'remove')).code).toBe(1);
+      expect(await workflow()).toBe('name: Mine\n');
+
+      await rm(join(repo, WORKFLOW));
+      await solstack('ci', 'init');
+      expect((await solstack('ci', 'remove')).code).toBe(0);
+      await expect(workflow()).rejects.toThrow();
+    }, 90_000);
+  });
+
   it('rejects a damaged checks file with a way to fix it', async () => {
     await writeFile(join(repo, '.solstack/checks.json'), 'not json');
     const result = await solstack('check', 'branch', 'x');

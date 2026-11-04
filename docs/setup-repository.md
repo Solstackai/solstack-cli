@@ -67,6 +67,23 @@ git add -A && git commit -m "Update Solstack"
 
 `solstack status` tells you when the repository is behind the server. Files of an agent that was removed are deleted by `update`.
 
+## Optional: checks
+
+Nothing here is required. Without it, Solstack gives agents your rules and checks nothing.
+
+An admin turns checks on under **Intake**, in a rule's **Checks** panel, as **Warn** or **Block**. Checks on tasks, comments and pull requests apply straight away to anything written through Solstack's tools. To cover commits, and pull requests made any other way, run `solstack update`, commit `.solstack/checks.json`, and choose either or both of these:
+
+| Option | Covers | Can be skipped? |
+|---|---|---|
+| `solstack hooks install`, by each developer who wants it | Commit messages and branch names, in that clone | Yes, with `--no-verify` |
+| `solstack ci init`, once for the repository | Every commit, the pull request's title and description, and its branch | Only by changing the workflow or `.solstack/checks.json` in the pull request, so have someone review changes to them |
+
+`solstack ci init` writes a GitHub Actions workflow. Commit it, and it runs on the pull requests that follow. To also require an OpenSpec change on pull requests, add `--openspec warn` or `--openspec block`. Pull requests that only change Solstack's own files don't need one, and `[no-spec]` in a title skips that check for changes such as a typo fix.
+
+**Stopping a merge is a separate step.** A failed check shows on the pull request, but it can still be merged until you make `solstack-check` a required status check in your branch protection settings. GitHub [offers those](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) on public repositories on Free, and on private ones from Pro or Team upward. Everything else here works on any plan.
+
+The workflow is pinned to the Solstack version that wrote it. Run `solstack ci init` again to update it, or `solstack ci remove` to delete it.
+
 | To… | Run |
 |---|---|
 | Move the repository to another Solstack server | `solstack init --key <new key> --server <url> --force` |

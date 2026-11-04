@@ -7,6 +7,7 @@ import { runOpenSpec } from '../openspec.js';
 import { findProjectRoot, readProjectConfig, type ProjectConfig } from '../project.js';
 import { guidanceIsCurrent } from '../standards.js';
 import { bold, dim, fail, ok, warn } from '../ui.js';
+import { ciInstalled } from './ci.js';
 import { hooksInstalled } from './hooks.js';
 
 /** Integrations this developer still has to connect: the repository's required ones, or all of them outside a repository. */
@@ -92,6 +93,7 @@ export async function status(): Promise<boolean> {
       const hooks = (await hooksInstalled(root)) ? 'git hooks installed' : 'git hooks not installed; `solstack hooks install` is optional';
       console.log(`\n${bold('Checks')}       ${names}; ${dim(hooks)}`);
     }
+    if (ciInstalled(root)) console.log(`${sections.length ? '' : '\n'}${bold('CI')}           GitHub Actions workflow installed`);
   }
 
   if (root) {

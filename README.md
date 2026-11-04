@@ -58,8 +58,9 @@ Commit the files it creates. When the admin changes the repository's agents or s
 | `solstack status` | What is set up and what is missing |
 | `solstack connect [github\|trello\|jira\|linear]` | Connects or reconnects an integration |
 | `solstack standards`, `solstack intake`, `solstack context` | Lists the team's guidance installed in the repository |
-| `solstack check commit <file>`, `branch [name]`, `pr --title <title>` | Checks a commit message, branch or pull request against the team's checks, if any are on |
+| `solstack check commit`, `commits`, `branch`, `pr`, `openspec` | Checks a commit, branch or pull request against the team's checks, if any are on |
 | `solstack hooks install`, `solstack hooks uninstall` | Runs those checks on each commit and push, in this clone only. Optional |
+| `solstack ci init`, `solstack ci remove` | Runs those checks on each pull request, with GitHub Actions. Optional |
 | `solstack spec <args>` | Runs the bundled OpenSpec on `.solstack/openspec` |
 
 To update the client: `npm install -g solstack@latest`.
