@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import { checkBranch, checkCommit, checkPullRequest } from './commands/check.js';
 import { connect } from './commands/connect.js';
+import { installHooks, uninstallHooks } from './commands/hooks.js';
 import { init, update } from './commands/init.js';
 import { login, logout } from './commands/login.js';
 import { setup } from './commands/setup.js';
@@ -129,6 +131,36 @@ async function main(argv: string[]): Promise<void> {
         }
       });
   }
+
+  const check = program.command('check').description("Check a commit message, branch or pull request against the team's checks, if any are on");
+  const finish = (passed: boolean) => {
+    if (!passed) process.exitCode = 1;
+  };
+  check
+    .command('commit <file>')
+    .description('Check a commit message file, as the commit-msg hook does')
+    .option('--quiet', 'print only what fails')
+    .action(async (file: string, options: { quiet?: boolean }) => finish(await checkCommit(file, options)));
+  check
+    .command('branch [name]')
+    .description('Check a branch name (default: the current branch, unless it is the default branch)')
+    .option('--quiet', 'print only what fails')
+    .action(async (name: string | undefined, options: { quiet?: boolean }) => finish(await checkBranch(name, options)));
+  check
+    .command('pr')
+    .description("Check a pull request's title, description and branch")
+    .requiredOption('--title <title>', 'pull request title')
+    .option('--body <text>', 'pull request description')
+    .option('--body-file <file>', 'file holding the pull request description')
+    .option('--branch <name>', 'branch the pull request comes from')
+    .option('--quiet', 'print only what fails')
+    .action(async (options: { title: string; body?: string; bodyFile?: string; branch?: string; quiet?: boolean }) =>
+      finish(await checkPullRequest(options)),
+    );
+
+  const hooks = program.command('hooks').description("Run the team's checks on each commit and push, in this clone only");
+  hooks.command('install').description('Install the commit-msg and pre-push hooks').action(installHooks);
+  hooks.command('uninstall').description('Remove the hooks installed by solstack').action(uninstallHooks);
 
   program.command('mcp').description('Run the MCP bridge agents connect to (started by your agents)');
   program.command('spec').description('Run OpenSpec on this repository, e.g. `solstack spec list`');

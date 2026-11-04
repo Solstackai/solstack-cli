@@ -20,6 +20,15 @@ export interface StandardDoc {
   appliesTo?: AppliesTo;
   /** The level of a product context document, from servers that report it. */
   contextLevel?: 'general' | 'specific' | 'product' | null;
+  /** Optional checks on what is written under this rule, from servers that report them. */
+  checkMode?: 'off' | 'warn' | 'block';
+  checks?: {
+    titleMaxLength?: number;
+    titlePattern?: string;
+    bodyRequired?: boolean;
+    bodyHeadings?: string[];
+    branchPattern?: string;
+  };
   slug: string;
   name: string;
   description: string;

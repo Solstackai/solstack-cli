@@ -46,6 +46,7 @@ In Codex the commands are skills: `$ss-propose`, `$ss-apply`, and so on.
 - **`/ss-feedback <what went wrong>`**: when the *workflow itself* misbehaves (a command did something odd, a standard was wrong or ignored), this sends a report to the Solstack admins. Not for bugs in your product.
 - **Trackers**: your agent can read and create issues, cards and comments in GitHub, Jira, Linear and Trello, as you. It asks before posting, and follows the team's intake rules for tasks, comments and pull requests.
 - **What the team expects**: `solstack standards`, `solstack intake` and `solstack context` list the engineering standards, writing rules and product documents your agent follows.
+- **Checks**: if your team has turned on checks, `solstack check` tests a commit message, branch or pull request against them, and `solstack hooks install` runs them on each commit and push in your clone. Both are optional, and do nothing if no checks are on. Warnings never stop you. `--no-verify` skips the hooks.
 
 ## When something is off
 
@@ -54,4 +55,5 @@ In Codex the commands are skills: `$ss-propose`, `$ss-apply`, and so on.
 | The agent says GitHub (or Jira, …) is not connected | `solstack connect` |
 | The `/ss-…` commands or Solstack tools are missing | `git pull`, then restart the agent. `solstack status` shows what is missing |
 | "The server rejected your access token" | `solstack login`, then restart the agent |
+| A commit or push says "Rejected by the team's checks" | Fix what it lists. To stop running them in your clone, `solstack hooks uninstall` |
 | Anything else | `solstack status` |

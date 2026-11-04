@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { StandardDoc } from '../api.js';
+import { CHECKS_FILE, checksFileContent } from '../checks.js';
 import { initOpenSpec } from '../openspec.js';
 import { SOLSTACK_DIR, type ProjectConfig } from '../project.js';
 import { adapterFor, WORKFLOW_COMMANDS, type AgentAdapter, type GeneratedFile, type JsonEdit } from './agents.js';
@@ -86,6 +87,9 @@ export async function generateProject(
     owned.push({ path: `${SOLSTACK_DIR}/commands/${command.id}.md`, content: await template(`commands/${command.id}.md`) });
   }
   for (const adapter of adapters) owned.push(...adapter.commandFiles(config.commandPrefix));
+  // Only there when a check is on, so repositories without enforcement get nothing new. Offline it is left as it is.
+  const checks = standards === null ? await readOptional(join(root, CHECKS_FILE)) : checksFileContent(standards);
+  if (checks !== null) owned.push({ path: CHECKS_FILE, content: checks });
   for (const file of owned) await writeIfChanged(file.path, file.content);
 
   // Engineering standards, as one skill per standard in every selected agent's skills folder.

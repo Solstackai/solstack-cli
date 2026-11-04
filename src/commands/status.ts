@@ -1,11 +1,13 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { api, type Me } from '../api.js';
+import { readChecks } from '../checks.js';
 import { resolveSession } from '../credentials.js';
 import { runOpenSpec } from '../openspec.js';
 import { findProjectRoot, readProjectConfig, type ProjectConfig } from '../project.js';
 import { guidanceIsCurrent } from '../standards.js';
 import { bold, dim, fail, ok, warn } from '../ui.js';
+import { hooksInstalled } from './hooks.js';
 
 /** Integrations this developer still has to connect: the repository's required ones, or all of them outside a repository. */
 export function missingIntegrations(me: Me, config: ProjectConfig | null): Me['connections'] {
@@ -80,6 +82,15 @@ export async function status(): Promise<boolean> {
     else {
       console.log(`\n${bold('Guidance')}     ${warn(`${count}; the server has changes. Run \`solstack update\` and commit.`)}`);
       healthy = false;
+    }
+  }
+
+  if (root) {
+    const sections = Object.entries(await readChecks(root));
+    if (sections.length) {
+      const names = sections.map(([section, { mode }]) => `${section.replace('_', ' ')} (${mode})`).join(', ');
+      const hooks = (await hooksInstalled(root)) ? 'git hooks installed' : 'git hooks not installed; `solstack hooks install` is optional';
+      console.log(`\n${bold('Checks')}       ${names}; ${dim(hooks)}`);
     }
   }
 

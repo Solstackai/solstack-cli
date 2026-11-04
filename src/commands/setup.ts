@@ -1,11 +1,13 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { registerWithAntigravity } from '../antigravity.js';
+import { readChecks } from '../checks.js';
 import { chooseServer, resolveSession, type ServerChoice } from '../credentials.js';
 import { adapterFor, MCP_SERVER_NAME, WORKFLOW_COMMANDS } from '../generate/agents.js';
 import { findProjectRoot, gitRoot, readProjectConfig } from '../project.js';
 import { bold, dim, ok, warn } from '../ui.js';
 import { connect } from './connect.js';
+import { hooksInstalled } from './hooks.js';
 import { login } from './login.js';
 import { isOnPath, status } from './status.js';
 
@@ -91,6 +93,9 @@ export async function setup(): Promise<void> {
       console.log(dim(`    Commands: ${commands}`));
     }
     console.log(dim('Restart open agents and IDEs so they load the new commands and MCP server.'));
+    if (root && Object.keys(await readChecks(root)).length && !(await hooksInstalled(root))) {
+      console.log(dim('This repository has checks. To run them on each commit and push, run: solstack hooks install'));
+    }
   }
 
   console.log(bold('\nStatus'));
