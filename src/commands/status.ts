@@ -4,6 +4,7 @@ import { api, type Me } from '../api.js';
 import { resolveSession } from '../credentials.js';
 import { runOpenSpec } from '../openspec.js';
 import { findProjectRoot, readProjectConfig, type ProjectConfig } from '../project.js';
+import { guidanceIsCurrent } from '../standards.js';
 import { bold, dim, fail, ok, warn } from '../ui.js';
 
 /** Integrations this developer still has to connect: the repository's required ones, or all of them outside a repository. */
@@ -71,12 +72,9 @@ export async function status(): Promise<boolean> {
 
   if (config) {
     const latest = await api.standards(session.serverUrl, session.token, config.repository.id).catch(() => null);
-    const installed = new Map(config.standards.map((s) => [s.slug, s.updatedAt]));
-    const current =
-      latest !== null &&
-      latest.length === installed.size &&
-      latest.every((s) => installed.get(s.slug) === s.updatedAt);
-    const count = `${installed.size} installed as skill${installed.size === 1 ? '' : 's'} (standards, intake rules, product context)`;
+    const installed = config.standards.length;
+    const current = latest !== null && guidanceIsCurrent(config, latest);
+    const count = `${installed} installed as skill${installed === 1 ? '' : 's'} (standards, intake rules, product context)`;
     if (latest === null) console.log(`\n${bold('Guidance')}     ${count} ${dim('(could not check the server)')}`);
     else if (current) console.log(`\n${bold('Guidance')}     ${ok(`${count}, up to date`)}`);
     else {

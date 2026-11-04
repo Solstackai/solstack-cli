@@ -10,10 +10,16 @@ export interface RepositorySetup {
 /** What a guidance document is for. All kinds are installed as agent skills. */
 export type GuidanceKind = 'standard' | 'intake' | 'context';
 
+export type AppliesTo = 'all' | 'selected' | 'repository';
+
 export interface StandardDoc {
   kind: GuidanceKind;
   /** The built-in intake section (tasks, comments, pull_requests, commits) for intake rules that fill one. */
   target: string | null;
+  /** How widely it applies, from servers that report it. When documents disagree, the narrowest wins. */
+  appliesTo?: AppliesTo;
+  /** The level of a product context document, from servers that report it. */
+  contextLevel?: 'general' | 'specific' | 'product' | null;
   slug: string;
   name: string;
   description: string;

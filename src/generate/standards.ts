@@ -1,4 +1,20 @@
-import type { GuidanceKind, StandardDoc } from '../api.js';
+import type { AppliesTo, GuidanceKind, StandardDoc } from '../api.js';
+
+const LEVEL_LABEL = { general: 'General business context', specific: 'Repository context', product: 'Product context' };
+
+const APPLIES_TO_NOTE: Record<AppliesTo, string> = {
+  all: 'Applies to all repositories. If it disagrees with a document for fewer repositories, follow that document.',
+  selected:
+    'Applies to this repository and possibly others. Follow it over a document for all repositories, but follow a document for only this repository over it.',
+  repository: 'Applies only to this repository. If it disagrees with a broader document, follow this one.',
+};
+
+/** Tells an agent that loaded this document how it ranks against the others. Servers that do not report it get no note. */
+function scopeNote({ appliesTo, contextLevel }: StandardDoc): string[] {
+  if (!appliesTo) return [];
+  const level = contextLevel ? `${LEVEL_LABEL[contextLevel]}. ` : '';
+  return [`> ${level}${APPLIES_TO_NOTE[appliesTo]}`, ''];
+}
 
 /** Used when a document has no "when it applies" text, so agents still know when to load it. */
 const FALLBACK_DESCRIPTION: Record<GuidanceKind, (name: string) => string> = {
@@ -25,10 +41,12 @@ export function standardSkill(standard: StandardDoc): string {
     '  source: solstack',
     `  kind: ${standard.kind}`,
     `  title: ${quote(standard.name)}`,
+    ...(standard.appliesTo ? [`  applies-to: ${standard.appliesTo}`] : []),
     '---',
     '',
     '<!-- Managed by Solstack. Edit it in the Solstack admin panel; `solstack update` replaces this file. -->',
     '',
+    ...scopeNote(standard),
     standard.content.trim(),
     '',
   ].join('\n');

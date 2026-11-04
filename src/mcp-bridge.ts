@@ -3,11 +3,35 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { resolveSession } from './credentials.js';
-import { findProjectRoot, readProjectConfig } from './project.js';
+import { api } from './api.js';
+import { resolveSession, type Session } from './credentials.js';
+import { findProjectRoot, readProjectConfig, type ProjectConfig } from './project.js';
+import { guidanceIsCurrent } from './standards.js';
 import { VERSION } from './version.js';
 
 const STATUS_TOOL = 'solstack_status';
+
+const GUIDANCE_CHECK_MS = 3_000;
+const OUTDATED_GUIDANCE =
+  "The team's standards, intake rules or product context changed on the server, so the skills installed in this repository may be out of date. " +
+  'Tell the developer to run `solstack update` and commit the result.';
+
+/** Asks the server whether the installed skills are current, without holding up startup or failing it. */
+async function guidanceNotice(session: Session, project: ProjectConfig): Promise<string | null> {
+  const check = api
+    .standards(session.serverUrl, session.token, project.repository.id)
+    .then((latest) => (guidanceIsCurrent(project, latest) ? null : OUTDATED_GUIDANCE))
+    .catch(() => null);
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), GUIDANCE_CHECK_MS);
+  });
+  try {
+    return await Promise.race([check, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * Local stdio MCP server that forwards to the Solstack gateway with the developer's stored token.
@@ -21,6 +45,7 @@ export async function runMcpBridge(): Promise<void> {
   const problem = (message: string) => `Solstack is not available: ${message}`;
   let upstream: Client | null = null;
   let failure: string | null = null;
+  let notice: string | null = null;
 
   try {
     const root = findProjectRoot();
@@ -47,6 +72,7 @@ export async function runMcpBridge(): Promise<void> {
         }),
       );
       upstream = client;
+      if (project) notice = await guidanceNotice(session, project);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -60,7 +86,10 @@ export async function runMcpBridge(): Promise<void> {
 
   const server = new Server(
     { name: 'solstack', version: VERSION },
-    { capabilities: { tools: {} }, instructions: upstream?.getInstructions() ?? failure ?? undefined },
+    {
+      capabilities: { tools: {} },
+      instructions: [upstream?.getInstructions() ?? failure, notice].filter(Boolean).join('\n\n') || undefined,
+    },
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async (request) => {

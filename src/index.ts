@@ -7,11 +7,17 @@ import { setup } from './commands/setup.js';
 import { status } from './commands/status.js';
 import { runMcpBridge } from './mcp-bridge.js';
 import { runOpenSpec } from './openspec.js';
-import type { GuidanceKind } from './api.js';
+import type { AppliesTo, GuidanceKind } from './api.js';
 import { requireProjectRoot } from './project.js';
 import { installedStandards } from './standards.js';
 import { bold, dim, red, UserError } from './ui.js';
 import { VERSION } from './version.js';
+
+const APPLIES_TO_LABEL: Record<AppliesTo, string> = {
+  all: 'all repositories',
+  selected: 'this repository and possibly others',
+  repository: 'only this repository',
+};
 
 function handleError(error: unknown): never {
   if ((error as Error)?.name === 'ExitPromptError') process.exit(130);
@@ -117,6 +123,7 @@ async function main(argv: string[]): Promise<void> {
           for (const document of documents) {
             console.log(`${bold(document.name)} ${dim(`(${document.slug})`)}`);
             if (document.description) console.log(`  ${document.description}`);
+            if (document.appliesTo) console.log(`  Applies to: ${APPLIES_TO_LABEL[document.appliesTo]}`);
             console.log(`  ${dim(document.path)}`);
           }
         }

@@ -205,6 +205,38 @@ describe('engineering standards', () => {
     expect(saved.standardFiles).toHaveLength(12);
   });
 
+  it('says how a document ranks when documents disagree', async () => {
+    const general: StandardDoc = { ...backend, appliesTo: 'all' };
+    const own: StandardDoc = {
+      ...backend,
+      kind: 'context',
+      slug: 'api-internals',
+      name: 'API internals',
+      appliesTo: 'repository',
+      contextLevel: 'specific',
+    };
+    const { config: saved } = await generateProject(root, config(), null, [general, own]);
+    await writeProjectConfig(root, saved);
+
+    const generalSkill = await read('.claude/skills/backend-standards/SKILL.md');
+    expect(generalSkill).toContain('  applies-to: all\n');
+    expect(generalSkill).toContain('> Applies to all repositories.');
+    const ownSkill = await read('.claude/skills/api-internals/SKILL.md');
+    expect(ownSkill).toContain('  applies-to: repository\n');
+    expect(ownSkill).toContain('> Repository context. Applies only to this repository.');
+    expect(ownSkill.indexOf('> Repository context.')).toBeLessThan(ownSkill.indexOf('Validate input with Zod.'));
+
+    expect((await installedStandards(root, 'context'))[0]?.appliesTo).toBe('repository');
+    expect(await read('AGENTS.md')).toContain('follow the one that applies to the fewest repositories');
+  });
+
+  it('adds no scope note for servers that do not report it', async () => {
+    await generateProject(root, config(), null, [backend]);
+    const skill = await read('.claude/skills/backend-standards/SKILL.md');
+    expect(skill).not.toContain('applies-to');
+    expect(skill).not.toContain('> Applies');
+  });
+
   it('updates changed standards and removes deleted ones', async () => {
     const first = await generateProject(root, config(), null, [backend, git]);
     const edited = { ...backend, content: '# Backend standards\n\nUse Zod 4.\n' };

@@ -21,10 +21,14 @@ let gatewayUrl: string;
 let workdir: string;
 const seenAuthorization: string[] = [];
 const seenRepository: (string | undefined)[] = [];
+let serverGuidance: { slug: string; updatedAt: string }[] = [];
 
 /** Stands in for the Solstack gateway: stateless Streamable HTTP with one tool. */
 beforeAll(async () => {
   const app = express();
+  app.get('/api/v1/repositories/:id/standards', (_req, res) => {
+    res.json({ standards: serverGuidance });
+  });
   app.post('/mcp', express.json(), async (req, res) => {
     seenAuthorization.push(req.get('authorization') ?? '');
     seenRepository.push(req.get('x-solstack-repository'));
@@ -106,6 +110,46 @@ describe('solstack mcp', () => {
     } finally {
       await client.close();
     }
+  });
+
+  describe('installed guidance', () => {
+    const INSTALLED = { slug: 'backend-standards', kind: 'standard' as const, updatedAt: '2026-11-01T00:00:00.000Z' };
+
+    async function instructionsIn(name: string): Promise<string | undefined> {
+      const repository = join(workdir, name);
+      await writeProjectConfig(repository, {
+        version: 1,
+        server: gatewayUrl,
+        repository: { id: '22222222-2222-4222-8222-222222222222', name: 'acme/api' },
+        agents: [],
+        requiredIntegrations: [],
+        commandPrefix: 'ss',
+        managedFiles: [],
+        standards: [INSTALLED],
+        standardFiles: [],
+      });
+      const client = await startBridge({ SOLSTACK_SERVER: gatewayUrl, SOLSTACK_TOKEN: TOKEN }, repository);
+      try {
+        return client.getInstructions();
+      } finally {
+        await client.close();
+      }
+    }
+
+    it('adds nothing when the skills match the server', async () => {
+      serverGuidance = [{ slug: INSTALLED.slug, updatedAt: INSTALLED.updatedAt }];
+      expect(await instructionsIn('current')).toBe('Gateway instructions');
+    });
+
+    it('tells the agent when the server has changes', async () => {
+      serverGuidance = [{ slug: INSTALLED.slug, updatedAt: '2026-11-02T00:00:00.000Z' }];
+      const instructions = await instructionsIn('edited');
+      expect(instructions).toContain('Gateway instructions');
+      expect(instructions).toContain('`solstack update`');
+
+      serverGuidance = [];
+      expect(await instructionsIn('removed')).toContain('`solstack update`');
+    });
   });
 
   it('explains what to fix when the developer is not signed in', async () => {

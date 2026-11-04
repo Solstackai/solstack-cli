@@ -1,13 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { GuidanceKind } from './api.js';
-import { readProjectConfig } from './project.js';
+import type { AppliesTo, GuidanceKind, StandardDoc } from './api.js';
+import { readProjectConfig, type ProjectConfig } from './project.js';
 
 export interface InstalledStandard {
   kind: GuidanceKind;
   slug: string;
   name: string;
   description: string;
+  appliesTo?: AppliesTo;
   /** One of the generated skill files; every agent's copy has the same content. */
   path: string;
 }
@@ -20,6 +21,12 @@ function frontmatterValue(text: string, key: string): string | undefined {
   } catch {
     return raw;
   }
+}
+
+/** Whether the skills installed in a repository match what the server has for it now. */
+export function guidanceIsCurrent(config: Pick<ProjectConfig, 'standards'>, latest: StandardDoc[]): boolean {
+  const installed = new Map(config.standards.map((s) => [s.slug, s.updatedAt]));
+  return latest.length === installed.size && latest.every((s) => installed.get(s.slug) === s.updatedAt);
 }
 
 /** Documents of one kind installed in a repository, read from the skills `solstack update` wrote. */
@@ -38,6 +45,7 @@ export async function installedStandards(root: string, kind: GuidanceKind = 'sta
       slug,
       name: frontmatterValue(frontmatter, 'title') ?? slug,
       description: frontmatterValue(frontmatter, 'description') ?? '',
+      appliesTo: frontmatterValue(frontmatter, 'applies-to') as AppliesTo | undefined,
       path,
     });
   }
